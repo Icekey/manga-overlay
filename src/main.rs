@@ -1,0 +1,44 @@
+#![warn(clippy::all, rust_2018_idioms)]
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+use std::{fs, path::Path};
+
+// hide console window on Windows in release
+use egui_ocr::OcrApp;
+
+#[tokio::main]
+async fn main() -> eframe::Result {
+    // env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
+
+    init_logger();
+
+    let native_options = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default()
+            .with_transparent(true)
+            .with_always_on_top()
+            .with_inner_size([400.0, 300.0])
+            .with_min_inner_size([300.0, 220.0]), // .with_icon(
+        //     // NOTE: Adding an icon is optional
+        //     eframe::icon_data::from_png_bytes(&include_bytes!("../assets/icon-256.png")[..])
+        //         .expect("Failed to load icon"),
+        // )
+        ..Default::default()
+    };
+    eframe::run_native(
+        "egui OCR",
+        native_options,
+        Box::new(|cc| Ok(Box::new(OcrApp::new(cc)))),
+    )
+}
+
+const LOG_CONFIG_DIR: &'static str = "config";
+const LOG_CONFIG: &'static str = "config/log4rs.yaml";
+
+fn init_logger() {
+    fs::create_dir_all(LOG_CONFIG_DIR).expect("Config directory creation failed");
+    if !Path::new(&LOG_CONFIG).exists() {
+        fs::write(&LOG_CONFIG, include_str!("../config/log4rs.yaml"))
+            .expect("Config file creation failed");
+    }
+
+    log4rs::init_file("config/log4rs.yaml", Default::default()).expect("Logger init failed");
+}
