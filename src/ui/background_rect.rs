@@ -1,4 +1,4 @@
-use super::{channel_value::ChannelValue, mouse_hover::get_frame_rect, show_ui::ShowUi};
+use super::{channel_value::ChannelValue, mouse_hover::get_frame_rect, settings::AppSettings};
 use crate::{
     action::{screenshot, ScreenshotParameter, ScreenshotResult},
     detect::comictextdetector::DETECT_STATE,
@@ -15,9 +15,6 @@ pub struct BackgroundRect {
     start_pos: Pos2,
     end_pos: Pos2,
 
-    #[serde(skip)]
-    pub drag_done: bool,
-
     channel_value: ChannelValue<ScreenshotResult>,
 }
 
@@ -26,20 +23,25 @@ impl Default for BackgroundRect {
         Self {
             start_pos: Default::default(),
             end_pos: Default::default(),
-            drag_done: false,
             channel_value: Default::default(),
         }
     }
 }
 
-impl ShowUi for BackgroundRect {
-    fn show(&mut self, ctx: &egui::Context) {
+impl BackgroundRect {
+    pub fn show(&mut self, ctx: &egui::Context, settings: &AppSettings) {
         self.channel_value.update();
 
         let frame_rect = get_frame_rect(ctx);
         let bg_response = draw_background(ctx, frame_rect);
 
-        self.update_drag(&bg_response.response, ctx);
+        if self.update_drag(&bg_response.response) {
+            self.start_ocr(ctx, settings);
+        }
+
+        if bg_response.response.drag_started() {
+            self.channel_value.reset();
+        }
 
         self.channel_value.value.show(ctx, &self.get_rect());
 
@@ -77,23 +79,23 @@ fn show_image_in_window(ctx: &egui::Context, capture_image: &image::DynamicImage
 }
 
 impl BackgroundRect {
-    fn update_drag(&mut self, response: &egui::Response, ctx: &egui::Context) {
+    fn update_drag(&mut self, response: &egui::Response) -> bool {
         if response.drag_started() {
             if let Some(mpos) = response.interact_pointer_pos() {
                 self.start_pos = mpos;
             }
         }
 
-        self.drag_done = false;
         if response.dragged() || response.drag_stopped() {
             if let Some(mpos) = response.interact_pointer_pos() {
                 self.end_pos = mpos;
                 if response.drag_stopped() {
-                    self.drag_done = true;
-                    self.start_ocr(ctx);
+                    return true;
                 }
             }
         }
+
+        return false;
     }
 
     pub fn get_rect(&self) -> Rect {
@@ -125,10 +127,7 @@ impl BackgroundRect {
         rect
     }
 
-    fn start_ocr(&self, ctx: &egui::Context) {
-        if !self.drag_done {
-            return;
-        }
+    fn start_ocr(&self, ctx: &egui::Context, settings: &AppSettings) {
         let tx = self.channel_value.tx();
         let ocr_state = OCR_STATE.clone();
         let detect_state = DETECT_STATE.clone();
@@ -140,10 +139,9 @@ impl BackgroundRect {
             y: global_rect.min.y as i32,
             width: global_rect.width() as u32,
             height: global_rect.height() as u32,
-            detect_boxes: true,
-            //TODO: Backend auswahl
-            backends: vec![OcrBackend::MangaOcr],
-            ..Default::default()
+            detect_boxes: settings.detect_boxes,
+            full_capture_ocr: !settings.detect_boxes,
+            backends: get_backends(settings),
         };
 
         tokio::spawn(async move {
@@ -157,6 +155,24 @@ impl BackgroundRect {
             let _ = tx.send(screenshot).await;
         });
     }
+}
+
+fn get_backends(settings: &AppSettings) -> Vec<OcrBackend> {
+    let mut backends = vec![];
+
+    if settings.is_tesseract {
+        backends.push(OcrBackend::Tesseract(settings.tesseract_parameter.clone()));
+    }
+
+    if settings.is_easy_ocr {
+        backends.push(OcrBackend::EasyOcr(settings.easy_ocr_parameter.clone()));
+    }
+
+    if settings.is_manga_ocr {
+        backends.push(OcrBackend::MangaOcr);
+    }
+
+    backends
 }
 
 fn draw_background(ctx: &egui::Context, frame_rect: Rect) -> egui::InnerResponse<()> {

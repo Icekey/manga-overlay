@@ -49,13 +49,13 @@ pub enum OcrBackend {
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct TesseractParameter {
-    lang: String,
-    dpi: Option<i32>,
+    pub lang: String,
+    pub dpi: i32,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct EasyOcrParameter {
-    lang: String,
+    pub lang: String,
 }
 
 impl OcrBackend {
@@ -145,11 +145,11 @@ mod tests {
         let backends: Vec<OcrBackend> = vec![
             Tesseract(TesseractParameter {
                 lang: "jpn".into(),
-                dpi: Some(200),
+                dpi: 200,
             }),
             Tesseract(TesseractParameter {
                 lang: "eng".into(),
-                dpi: None,
+                dpi: 0,
             }),
             EasyOcr(EasyOcrParameter { lang: "eng".into() }),
             MangaOcr,

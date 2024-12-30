@@ -77,7 +77,7 @@ impl eframe::App for OcrApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         ctx.set_zoom_factor(2.0);
 
-        self.background_rect.show(ctx);
+        self.background_rect.show(ctx, &self.settings);
 
         self.settings.show(ctx);
 

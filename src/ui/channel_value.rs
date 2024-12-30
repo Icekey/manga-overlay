@@ -35,4 +35,8 @@ impl<T: Default> ChannelValue<T> {
             self.value = value;
         }
     }
+
+    pub fn reset(&mut self) {
+        self.value = Default::default();
+    }
 }
