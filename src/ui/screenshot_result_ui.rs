@@ -28,12 +28,20 @@ impl ScreenshotResult {
                     };
 
                     if ctx.wants_pointer_input() {
-                        ctx.input(|state| {
-                            let scroll_y = state.raw_scroll_delta.y;
-                            if scroll_y != 0.0 {
-                                info!("Scroll Y: {}", scroll_y);
-                            }
-                        })
+                        let scroll_y = ctx.input(|state| state.raw_scroll_delta.y);
+
+                        if scroll_y != 0.0 {
+                            let id = Id::new("Scroll Y");
+
+                            let value = ctx.data_mut(|map| {
+                                let value = map.get_temp::<f32>(id).unwrap_or_default() + scroll_y;
+
+                                map.insert_temp(id, value);
+
+                                value
+                            });
+                            info!("Scroll Y: {}", value);
+                        }
                     }
                     ui.painter()
                         .rect(rect, 0.0, Color32::TRANSPARENT, (1.0, color));

@@ -1,5 +1,4 @@
 use super::background_rect::BackgroundRect;
-use super::ocr_rect::OcrUiRect;
 use super::settings::AppSettings;
 use super::show_ui::ShowUi;
 
@@ -75,7 +74,7 @@ impl eframe::App for OcrApp {
 
     /// Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        ctx.set_zoom_factor(2.0);
+        ctx.set_zoom_factor(self.settings.zoom_factor);
 
         self.background_rect.show(ctx, &self.settings);
 
@@ -84,9 +83,5 @@ impl eframe::App for OcrApp {
         self.update_mouse_passthrough(ctx);
 
         self.draw_mouse_position(ctx);
-
-        OcrUiRect::new("OcrRect".into())
-            .with_rect(self.background_rect.get_rect())
-            .show(ctx);
     }
 }

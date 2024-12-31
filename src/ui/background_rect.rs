@@ -32,8 +32,7 @@ impl BackgroundRect {
     pub fn show(&mut self, ctx: &egui::Context, settings: &AppSettings) {
         self.channel_value.update();
 
-        let frame_rect = get_frame_rect(ctx);
-        let bg_response = draw_background(ctx, frame_rect);
+        let bg_response = self.draw_background(ctx);
 
         if self.update_drag(&bg_response.response) {
             self.start_ocr(ctx, settings);
@@ -42,8 +41,6 @@ impl BackgroundRect {
         if bg_response.response.drag_started() {
             self.channel_value.reset();
         }
-
-        self.channel_value.value.show(ctx, &self.get_rect());
 
         if let Some(capture_image) = &self.channel_value.value.capture_image {
             show_image_in_window(ctx, capture_image);
@@ -106,7 +103,6 @@ impl BackgroundRect {
         let mut rect = self.get_rect();
         let zoom_factor = ctx.zoom_factor();
         let frame_rect = get_frame_rect(ctx);
-        // let mut rect = rect.translate(Vec2::new(frame_rect.top(), frame_rect.left()));
 
         info!("rect: {:?}", rect);
         info!("frame_rect: {:?}", frame_rect);
@@ -120,9 +116,6 @@ impl BackgroundRect {
             frame_rect.left() * zoom_factor,
             frame_rect.top() * zoom_factor,
         ));
-
-        info!("rect2: {:?}", rect);
-        // let rect = rect.scale_from_center(zoom_factor);
 
         rect
     }
@@ -155,6 +148,25 @@ impl BackgroundRect {
             let _ = tx.send(screenshot).await;
         });
     }
+
+    fn draw_background(&self, ctx: &egui::Context) -> egui::InnerResponse<()> {
+        let frame_rect = get_frame_rect(ctx);
+        let rect = self.get_rect();
+
+        self.channel_value.value.show(ctx, &rect);
+
+        egui::Area::new(Id::new("Background"))
+            .order(egui::Order::Background)
+            .sense(Sense::drag())
+            .fixed_pos(Pos2::ZERO)
+            .show(ctx, |ui| {
+                ui.set_width(frame_rect.width());
+                ui.set_height(frame_rect.height());
+
+                ui.painter()
+                    .rect(rect, 0.0, Color32::TRANSPARENT, (1.0, Color32::RED));
+            })
+    }
 }
 
 fn get_backends(settings: &AppSettings) -> Vec<OcrBackend> {
@@ -173,15 +185,4 @@ fn get_backends(settings: &AppSettings) -> Vec<OcrBackend> {
     }
 
     backends
-}
-
-fn draw_background(ctx: &egui::Context, frame_rect: Rect) -> egui::InnerResponse<()> {
-    egui::Area::new(Id::new("Background"))
-        .order(egui::Order::Background)
-        .sense(Sense::drag())
-        .fixed_pos(Pos2::ZERO)
-        .show(ctx, |ui| {
-            ui.set_width(frame_rect.width());
-            ui.set_height(frame_rect.height());
-        })
 }

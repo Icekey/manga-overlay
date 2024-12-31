@@ -35,6 +35,7 @@ impl JpnData {
 #[serde(default)]
 pub struct JpnWordInfo {
     word: char,
+    #[serde(skip)]
     kanji_data: Option<KanjiData>,
 }
 
