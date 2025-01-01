@@ -1,10 +1,10 @@
 #![warn(clippy::all, rust_2018_idioms)]
 mod ui;
 
+use action::ScreenshotParameter;
 pub use ui::app::OcrApp;
 
 use anyhow::*;
-use clap::Parser;
 use image::{DynamicImage, RgbaImage};
 use rusty_tesseract::Args;
 use screenshots::Screen;
@@ -16,15 +16,7 @@ pub mod jpn;
 pub mod ocr;
 pub mod translation;
 
-#[derive(Parser, Default, Debug)]
-pub struct CaptureParameter {
-    pub x: i32,
-    pub y: i32,
-    pub width: u32,
-    pub height: u32,
-}
-
-impl CaptureParameter {
+impl ScreenshotParameter {
     pub fn get_screenshot(&self) -> Result<DynamicImage> {
         let screen = Screen::from_point(self.x, self.y)?;
         let image = screen.capture_area(

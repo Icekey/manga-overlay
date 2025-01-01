@@ -7,26 +7,15 @@ use itertools::Itertools;
 use log::info;
 use open::that;
 
-use crate::detect::comictextdetector::{Boxes, DetectState};
+use crate::detect::comictextdetector::{Boxes, DETECT_STATE};
 use crate::jpn::{dict, get_jpn_data, JpnData};
-use crate::ocr::{OcrBackend, OcrState};
+use crate::ocr::OcrBackend;
 use crate::translation::google::translate;
-use crate::{database, detect, CaptureParameter};
+use crate::{database, detect};
 
-fn exit_app() {
-    std::process::exit(0);
-}
-
-fn open_workdir() {
+pub fn open_workdir() {
     let current_dir = std::env::current_dir().expect("Failed to get current_dir");
     that(current_dir).expect("Failed to open current_dir");
-}
-
-async fn get_langs() -> Vec<String> {
-    return rusty_tesseract::get_tesseract_langs().unwrap_or_else(|e| {
-        info!("error calling get_tesseract_langs: {}", e);
-        vec![]
-    });
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Default)]
@@ -40,27 +29,15 @@ pub struct ScreenshotParameter {
     pub backends: Vec<OcrBackend>,
 }
 
-pub async fn screenshot(
+pub async fn run_ocr(
     parameter: ScreenshotParameter,
-    ocr_state: &OcrState,
-    detect_state: &DetectState,
+    mut capture_image: DynamicImage,
 ) -> Result<ScreenshotResult, ()> {
-    let capture_parameter = CaptureParameter {
-        x: parameter.x,
-        y: parameter.y,
-        width: parameter.width,
-        height: parameter.height,
-    };
-
-    let mut capture_image = capture_parameter.get_screenshot().ok().unwrap();
-
-    // let _ = app.emit("update_is_screen_capture_running", false);
-
     let backends: Vec<OcrBackend> = parameter.backends;
 
     //Detect Boxes
     let boxes: Vec<Boxes> = if parameter.detect_boxes {
-        detect_state.run_model(0.5, &mut capture_image)
+        DETECT_STATE.clone().run_model(0.5, &mut capture_image)
     } else {
         vec![]
     };
@@ -78,7 +55,7 @@ pub async fn screenshot(
 
     let image = capture_image.clone();
 
-    let cutout_results = run_ocr_on_cutout_images(&ocr_state, &image, &backends, rects);
+    let cutout_results = run_ocr_on_cutout_images(&image, &backends, rects);
 
     let mut futures = vec![];
 
@@ -111,7 +88,6 @@ pub async fn screenshot(
 }
 
 fn run_ocr_on_cutout_images(
-    ocr_state: &OcrState,
     capture_image: &DynamicImage,
     backends: &Vec<OcrBackend>,
     rects: Vec<Rect>,
@@ -122,7 +98,7 @@ fn run_ocr_on_cutout_images(
         .filter(|x| x.width() != 0 && x.height() != 0)
         .collect();
 
-    OcrBackend::run_backends(&cutout_images, &ocr_state, &backends)
+    OcrBackend::run_backends(&cutout_images, &backends)
         .unwrap_or_else(|e| vec![e.to_string(); rects.len()])
         .into_iter()
         .zip(rects.into_iter())

@@ -1,13 +1,13 @@
 use super::{channel_value::ChannelValue, mouse_hover::get_frame_rect, settings::AppSettings};
 use crate::{
-    action::{screenshot, ScreenshotParameter, ScreenshotResult},
-    detect::comictextdetector::DETECT_STATE,
-    ocr::{OcrBackend, OCR_STATE},
+    action::{run_ocr, ScreenshotParameter, ScreenshotResult},
+    ocr::OcrBackend,
 };
 
 use egui::{Color32, ColorImage, Id, ImageData, Pos2, Rect, Sense, TextureOptions, Vec2};
 use log::info;
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
+use tokio::time::{sleep, Instant};
 
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)]
@@ -15,7 +15,13 @@ pub struct BackgroundRect {
     start_pos: Pos2,
     end_pos: Pos2,
 
-    channel_value: ChannelValue<ScreenshotResult>,
+    screenshot_result: ChannelValue<ScreenshotResult>,
+    hide_ocr_rects: ChannelValue<bool>,
+
+    #[serde(skip)]
+    start_ocr_at: Option<Instant>,
+    #[serde(skip)]
+    last_ocr_rect_hover_at: Option<Instant>,
 }
 
 impl Default for BackgroundRect {
@@ -23,28 +29,70 @@ impl Default for BackgroundRect {
         Self {
             start_pos: Default::default(),
             end_pos: Default::default(),
-            channel_value: Default::default(),
+            screenshot_result: Default::default(),
+            start_ocr_at: None,
+            last_ocr_rect_hover_at: None,
+            hide_ocr_rects: Default::default(),
         }
     }
 }
 
+pub fn start_ocr_id() -> Id {
+    Id::new("start_ocr")
+}
+
+fn is_start_ocr(ctx: &egui::Context) -> bool {
+    return ctx.data_mut(|map| {
+        let id = start_ocr_id();
+        let value = map.get_temp(id).unwrap_or(false);
+        map.insert_temp(id, false);
+        value
+    });
+}
+
 impl BackgroundRect {
     pub fn show(&mut self, ctx: &egui::Context, settings: &AppSettings) {
-        self.channel_value.update();
+        self.hide_ocr_rects.update();
 
+        if self.screenshot_result.update() {
+            if self.start_ocr_at.is_none() && settings.auto_restart_ocr {
+                self.start_ocr_at = Some(Instant::now());
+            }
+            self.hide_ocr_rects.set(false);
+        }
         let bg_response = self.draw_background(ctx);
 
         if self.update_drag(&bg_response.response) {
+            self.start_ocr_at = Some(Instant::now());
+        };
+
+        if is_start_ocr(&ctx) || self.should_auto_restart(settings) {
+            self.start_ocr_at = None;
+            self.hide_ocr_rects.set(true);
             self.start_ocr(ctx, settings);
         }
 
         if bg_response.response.drag_started() {
-            self.channel_value.reset();
+            self.screenshot_result.reset();
         }
 
-        if let Some(capture_image) = &self.channel_value.value.capture_image {
+        if let Some(capture_image) = &self.screenshot_result.value.capture_image {
             show_image_in_window(ctx, capture_image);
         }
+    }
+
+    fn should_auto_restart(&mut self, settings: &AppSettings) -> bool {
+        if let Some(instant) = self.start_ocr_at {
+            let not_hovering = self
+                .last_ocr_rect_hover_at
+                .map(|x| x.elapsed() >= Duration::from_millis(settings.hover_delay_ms))
+                .unwrap_or(true);
+
+            let elapsed = instant.elapsed();
+            return elapsed >= Duration::from_millis(settings.auto_restart_delay_ms)
+                && not_hovering;
+        }
+        false
     }
 }
 
@@ -121,9 +169,7 @@ impl BackgroundRect {
     }
 
     fn start_ocr(&self, ctx: &egui::Context, settings: &AppSettings) {
-        let tx = self.channel_value.tx();
-        let ocr_state = OCR_STATE.clone();
-        let detect_state = DETECT_STATE.clone();
+        let tx = self.screenshot_result.tx();
 
         let global_rect = self.get_global_rect(ctx);
 
@@ -137,11 +183,17 @@ impl BackgroundRect {
             backends: get_backends(settings),
         };
 
+        let screenshot_delay_ms = settings.screenshot_delay_ms;
+        let hide_ocr_rects_tx = self.hide_ocr_rects.tx();
         tokio::spawn(async move {
+            sleep(Duration::from_millis(screenshot_delay_ms)).await;
+
+            let image = screenshot_parameter.get_screenshot().unwrap();
+
+            hide_ocr_rects_tx.send(false).await.unwrap();
+
             info!("Start screenshot");
-            let screenshot = screenshot(screenshot_parameter, &ocr_state, &detect_state)
-                .await
-                .unwrap();
+            let screenshot = run_ocr(screenshot_parameter, image).await.unwrap();
 
             info!("Stop screenshot");
 
@@ -149,11 +201,15 @@ impl BackgroundRect {
         });
     }
 
-    fn draw_background(&self, ctx: &egui::Context) -> egui::InnerResponse<()> {
+    fn draw_background(&mut self, ctx: &egui::Context) -> egui::InnerResponse<()> {
         let frame_rect = get_frame_rect(ctx);
         let rect = self.get_rect();
 
-        self.channel_value.value.show(ctx, &rect);
+        if !self.hide_ocr_rects.value {
+            if self.screenshot_result.value.show(ctx, &rect) {
+                self.last_ocr_rect_hover_at = Some(Instant::now());
+            }
+        }
 
         egui::Area::new(Id::new("Background"))
             .order(egui::Order::Background)

@@ -61,7 +61,6 @@ pub struct EasyOcrParameter {
 impl OcrBackend {
     pub fn run_backends(
         images: &Vec<DynamicImage>,
-        state: &OcrState,
         backends: &Vec<OcrBackend>,
     ) -> Result<Vec<String>> {
         let image: Vec<Image> = images
@@ -72,7 +71,7 @@ impl OcrBackend {
 
         let backend_outputs: Vec<Vec<String>> = backends
             .into_iter()
-            .map(|e| (e.to_string(), e.run_ocr(&image, state)))
+            .map(|e| (e.to_string(), e.run_ocr(&image)))
             .map(|e| concat_backend_output(e.0, e.1, backend_count))
             .collect();
 
@@ -92,7 +91,7 @@ impl OcrBackend {
         Ok(output)
     }
 
-    pub fn run_ocr(&self, images: &Vec<Image>, state: &OcrState) -> Result<Vec<String>> {
+    pub fn run_ocr(&self, images: &Vec<Image>) -> Result<Vec<String>> {
         return match self {
             OcrBackend::Tesseract(x) => images
                 .iter()
@@ -102,12 +101,12 @@ impl OcrBackend {
                 .iter()
                 .map(|image| easy_ocr::run_ocr_easy_ocr(&image, x))
                 .collect(),
-            OcrBackend::MangaOcr => Self::run_manga_ocr(images, state),
+            OcrBackend::MangaOcr => Self::run_manga_ocr(images),
         };
     }
 
-    fn run_manga_ocr(images: &Vec<Image>, state: &OcrState) -> Result<Vec<String>> {
-        if let Some(x) = state.manga_ocr.lock().unwrap().as_mut() {
+    fn run_manga_ocr(images: &Vec<Image>) -> Result<Vec<String>> {
+        if let Some(x) = OCR_STATE.clone().manga_ocr.lock().unwrap().as_mut() {
             manga_ocr::run_manga_ocr(images, x)
         } else {
             bail!("No MangaOcrInstance")

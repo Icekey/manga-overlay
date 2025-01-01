@@ -6,9 +6,9 @@ use crate::action::{ResultData, ScreenshotResult};
 use super::mouse_hover::get_frame_mouse_position;
 
 impl ScreenshotResult {
-    pub fn show(&self, ctx: &egui::Context, screenshot_rect: &Rect) {
+    pub fn show(&mut self, ctx: &egui::Context, screenshot_rect: &Rect) -> bool {
         let frame_mouse_position = get_frame_mouse_position(ctx);
-
+        let mut area_hovered = false;
         for (i, result) in self.ocr_results.iter().enumerate() {
             let rect = result.get_ui_rect(ctx);
             let rect = rect.translate(screenshot_rect.left_top().to_vec2());
@@ -50,7 +50,12 @@ impl ScreenshotResult {
             if area.response.clicked() {
                 info!("Clicked");
             }
+
+            if area.response.hovered() {
+                area_hovered = true;
+            }
         }
+        return area_hovered;
     }
 }
 

@@ -29,11 +29,17 @@ impl<T: Default> ChannelValue<T> {
         self.tx.clone()
     }
 
-    pub fn update(&mut self) {
+    pub fn update(&mut self) -> bool {
         if let Ok(value) = self.rx.try_recv() {
             info!("Received message");
             self.value = value;
+            return true;
         }
+        return false;
+    }
+
+    pub fn set(&mut self, value: T) {
+        self.value = value;
     }
 
     pub fn reset(&mut self) {

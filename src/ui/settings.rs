@@ -1,9 +1,13 @@
 use egui::{CollapsingHeader, Id};
+use log::info;
 use rusty_tesseract::get_tesseract_langs;
 
-use crate::ocr::{EasyOcrParameter, TesseractParameter};
+use crate::{
+    action::open_workdir,
+    ocr::{EasyOcrParameter, TesseractParameter},
+};
 
-use super::show_ui::ShowUi;
+use super::{background_rect::start_ocr_id, show_ui::ShowUi};
 
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)]
@@ -12,6 +16,11 @@ pub struct AppSettings {
     pub mouse_passthrough: bool,
     pub decorations: bool,
     pub zoom_factor: f32,
+
+    pub auto_restart_ocr: bool,
+    pub auto_restart_delay_ms: u64,
+    pub screenshot_delay_ms: u64,
+    pub hover_delay_ms: u64,
 
     //OCR Settings
     pub detect_boxes: bool,
@@ -42,6 +51,10 @@ impl Default for AppSettings {
             langs: get_tesseract_langs().unwrap_or_default(),
             detect_boxes: true,
             zoom_factor: 2.0,
+            auto_restart_ocr: false,
+            auto_restart_delay_ms: 1000,
+            screenshot_delay_ms: 200,
+            hover_delay_ms: 1000,
         }
     }
 }
@@ -85,6 +98,10 @@ impl AppSettings {
             ui.ctx()
                 .send_viewport_cmd(egui::ViewportCommand::Decorations(self.decorations));
         }
+
+        if ui.button("Open Workdir").clicked() {
+            open_workdir();
+        }
     }
 
     fn show_ocr_config(&mut self, ui: &mut egui::Ui) {
@@ -93,6 +110,32 @@ impl AppSettings {
                 ui.selectable_value(&mut self.detect_boxes, false, "Full Capture");
                 ui.selectable_value(&mut self.detect_boxes, true, "Detect Boxes");
             });
+
+            ui.horizontal(|ui| {
+                if ui.button("Start OCR").clicked() {
+                    info!("Start OCR");
+                    ui.data_mut(|map| map.insert_temp(start_ocr_id(), true))
+                }
+                ui.checkbox(&mut self.auto_restart_ocr, "Auto Restart OCR");
+            });
+            ui.horizontal(|ui| {
+                ui.label("Auto Restart Time(ms):");
+
+                ui.add(egui::Slider::new(&mut self.auto_restart_delay_ms, 0..=5000));
+            });
+
+            ui.horizontal(|ui| {
+                ui.label("Screenshot Delay(ms):");
+
+                ui.add(egui::Slider::new(&mut self.screenshot_delay_ms, 0..=1000));
+            });
+
+            ui.horizontal(|ui| {
+                ui.label("Hover Delay(ms):");
+
+                ui.add(egui::Slider::new(&mut self.hover_delay_ms, 0..=5000));
+            });
+
             ui.separator();
 
             //Tesseract
