@@ -13,23 +13,23 @@ lazy_static! {
 #[derive(Serialize, Deserialize, Clone, Eq, PartialEq, Debug, Default)]
 #[serde(default)]
 pub struct KanjiData {
-    strokes: u8,
-    grade: Option<u8>,
-    freq: Option<u16>,
-    jlpt_old: Option<u8>,
-    jlpt_new: Option<u8>,
-    meanings: Vec<String>,
-    readings_on: Vec<String>,
-    readings_kun: Vec<String>,
-    wk_level: Option<u8>,
+    pub strokes: u8,
+    pub grade: Option<u8>,
+    pub freq: Option<u16>,
+    pub jlpt_old: Option<u8>,
+    pub jlpt_new: Option<u8>,
+    pub meanings: Vec<String>,
+    pub readings_on: Vec<String>,
+    pub readings_kun: Vec<String>,
+    pub wk_level: Option<u8>,
     #[serde_as(deserialize_as = "DefaultOnNull")]
-    wk_meanings: Vec<String>,
+    pub wk_meanings: Vec<String>,
     #[serde_as(deserialize_as = "DefaultOnNull")]
-    wk_readings_on: Vec<String>,
+    pub wk_readings_on: Vec<String>,
     #[serde_as(deserialize_as = "DefaultOnNull")]
-    wk_readings_kun: Vec<String>,
+    pub wk_readings_kun: Vec<String>,
     #[serde_as(deserialize_as = "DefaultOnNull")]
-    wk_radicals: Vec<String>,
+    pub wk_radicals: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Eq, PartialEq, Debug)]

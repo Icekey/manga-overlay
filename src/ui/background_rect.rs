@@ -117,7 +117,7 @@ fn show_image_in_window(ctx: &egui::Context, capture_image: &image::DynamicImage
         );
         ui.add(
             egui::Image::new(&screen_texture)
-                .fit_to_original_size(1.0 / ctx.zoom_factor()) // ERROR GONE
+                .fit_to_original_size(1.0 / ctx.zoom_factor())
                 .rounding(10.0),
         );
     });
@@ -151,9 +151,6 @@ impl BackgroundRect {
         let mut rect = self.get_rect();
         let zoom_factor = ctx.zoom_factor();
         let frame_rect = get_frame_rect(ctx);
-
-        info!("rect: {:?}", rect);
-        info!("frame_rect: {:?}", frame_rect);
 
         rect.set_top(rect.top() * zoom_factor);
         rect.set_left(rect.left() * zoom_factor);

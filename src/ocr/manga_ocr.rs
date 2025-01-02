@@ -8,7 +8,7 @@ use std::sync::Mutex;
 use anyhow::{Context, Result};
 use itertools::Itertools;
 use lazy_static::lazy_static;
-use log::info;
+use log::{debug, info};
 use rusty_tesseract::Image;
 
 pub fn run_manga_ocr(images: &Vec<Image>, manga_ocr: &mut MangaOcrInstance) -> Result<Vec<String>> {
@@ -47,7 +47,7 @@ impl MangaOcrInstance {
         let mut option: String = String::new();
         while !option.contains("Enter image path:") {
             option = stdout.next().context("no stdout.next()")??;
-            info!("---{}", option);
+            debug!("---{}", option);
         }
 
         info!("manga ocr init done");

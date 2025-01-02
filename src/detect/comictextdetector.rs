@@ -6,7 +6,7 @@ use image::imageops::FilterType;
 use image::{DynamicImage, GenericImageView, Rgba};
 use imageproc::drawing::draw_hollow_rect_mut;
 use imageproc::rect::Rect;
-use log::{error, info, warn};
+use log::{debug, error, info, warn};
 use ndarray::Array4;
 use ort::execution_providers::{CUDAExecutionProvider, ExecutionProvider};
 use ort::session::builder::GraphOptimizationLevel;
@@ -31,9 +31,9 @@ impl DetectState {
         let thread_arc = session.clone();
         thread::spawn(move || {
             if let Ok(mut x) = thread_arc.lock() {
-                info!("init detect model");
+                debug!("init detect model");
                 x.replace(load_model().expect("Failed to load detect model"));
-                info!("init detect model done");
+                debug!("init detect model done");
             };
         });
 

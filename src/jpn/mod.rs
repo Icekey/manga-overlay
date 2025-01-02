@@ -5,11 +5,11 @@ use jmdict::{Entry, GlossLanguage};
 pub mod dict;
 pub mod kanji;
 
-#[derive(Debug, serde::Serialize, serde::Deserialize, Default)]
+#[derive(Debug, serde::Serialize, serde::Deserialize, Default, PartialEq, Clone)]
 #[serde(default)]
 pub struct JpnData {
-    words: Vec<JpnWordInfo>,
-    jm_dict: Vec<JmDictInfo>,
+    pub words: Vec<JpnWordInfo>,
+    pub jm_dict: Vec<JmDictInfo>,
 }
 
 impl JpnData {
@@ -29,14 +29,57 @@ impl JpnData {
     pub fn get_kanji(&self) -> String {
         self.words.iter().map(|x| x.word).collect()
     }
+
+    pub fn get_info_rows(&self) -> Vec<String> {
+        if self.words.is_empty() {
+            return vec![];
+        }
+
+        let mut info = vec![];
+
+        self.jm_dict
+            .iter()
+            .for_each(|x| info.extend(x.info.iter().cloned()));
+
+        self.words
+            .iter()
+            .filter(|x| {
+                x.kanji_data
+                    .as_ref()
+                    .map(|x| x.meanings.len() > 0)
+                    .unwrap_or(false)
+            })
+            .map(|x| {
+                [
+                    format!(
+                        "{}: {}",
+                        x.word,
+                        x.kanji_data.as_ref().unwrap().meanings.join(", ")
+                    ),
+                    format!(
+                        "on Reading: {}",
+                        x.kanji_data.as_ref().unwrap().readings_on.join(", ")
+                    ),
+                    format!(
+                        "kun Reading: {}",
+                        x.kanji_data.as_ref().unwrap().readings_kun.join(", ")
+                    ),
+                ]
+            })
+            .for_each(|x| info.extend(x.iter().cloned()));
+
+        info = info.into_iter().filter(|x| !x.is_empty()).collect();
+
+        info
+    }
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize, Default)]
+#[derive(Debug, serde::Serialize, serde::Deserialize, Default, PartialEq, Clone)]
 #[serde(default)]
 pub struct JpnWordInfo {
-    word: char,
+    pub word: char,
     #[serde(skip)]
-    kanji_data: Option<KanjiData>,
+    pub kanji_data: Option<KanjiData>,
 }
 
 impl JpnWordInfo {
@@ -47,10 +90,10 @@ impl JpnWordInfo {
     }
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize, Default)]
+#[derive(Debug, serde::Serialize, serde::Deserialize, Default, PartialEq, Clone)]
 #[serde(default)]
 pub struct JmDictInfo {
-    info: Vec<String>,
+    pub info: Vec<String>,
 }
 
 impl JmDictInfo {

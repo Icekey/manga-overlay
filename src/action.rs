@@ -133,7 +133,7 @@ fn get_cutout_image(capture_image: &DynamicImage, rect: &Rect) -> DynamicImage {
     )
 }
 
-#[derive(Deserialize, Serialize, Default)]
+#[derive(Deserialize, Serialize, Default, Clone)]
 #[serde(default)]
 pub struct ScreenshotResult {
     #[serde(skip)]
@@ -141,7 +141,7 @@ pub struct ScreenshotResult {
     pub ocr_results: Vec<ResultData>,
 }
 
-#[derive(Deserialize, Serialize, Default)]
+#[derive(Deserialize, Serialize, Default, Clone)]
 #[serde(default)]
 pub struct ResultData {
     pub x: i32,
@@ -153,7 +153,26 @@ pub struct ResultData {
     pub jpn: Vec<Vec<JpnData>>,
 }
 
-async fn get_translation(input: String) -> String {
+impl ResultData {
+    pub fn get_jpn_data_with_info_count(&self) -> i32 {
+        self.get_jpn_data_with_info().count() as i32
+    }
+
+    pub fn get_jpn_data_with_info_by_index(&self, index: i32) -> Option<&JpnData> {
+        let count = self.get_jpn_data_with_info_count();
+        if count == 0 {
+            return None;
+        }
+        self.get_jpn_data_with_info()
+            .nth((index.rem_euclid(count)) as usize)
+    }
+
+    fn get_jpn_data_with_info(&self) -> impl Iterator<Item = &JpnData> {
+        self.jpn.iter().flatten().filter(|y| y.has_kanji_data())
+    }
+}
+
+pub async fn get_translation(input: &str) -> String {
     use std::time::Instant;
     let now = Instant::now();
 
