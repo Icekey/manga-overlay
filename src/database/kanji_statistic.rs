@@ -4,7 +4,7 @@ use serde::Serialize;
 
 use super::table::create_table;
 
-#[derive(Debug, Serialize, serde::Deserialize, PartialEq, Default)]
+#[derive(Debug, Clone, Serialize, serde::Deserialize, PartialEq, Default)]
 pub struct KanjiStatistic {
     pub id: i32,
     pub created_at: String,

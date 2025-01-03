@@ -1,6 +1,8 @@
 pub mod app;
 pub mod background_rect;
 pub mod channel_value;
+pub mod kanji_history_ui;
+pub mod kanji_statistic_ui;
 pub mod mouse_hover;
 pub mod screenshot_result_ui;
 pub mod settings;

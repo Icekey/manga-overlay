@@ -35,6 +35,10 @@ pub struct AppSettings {
 
     #[serde(skip)]
     pub langs: Vec<String>,
+
+    pub show_statistics: bool,
+    pub show_history: bool,
+    pub show_capture_image: bool,
 }
 
 impl Default for AppSettings {
@@ -55,6 +59,9 @@ impl Default for AppSettings {
             auto_restart_delay_ms: 1000,
             screenshot_delay_ms: 200,
             hover_delay_ms: 1000,
+            show_statistics: false,
+            show_history: false,
+            show_capture_image: false,
         }
     }
 }
@@ -102,6 +109,10 @@ impl AppSettings {
         if ui.button("Open Workdir").clicked() {
             open_workdir();
         }
+
+        ui.checkbox(&mut self.show_history, "Show History");
+        ui.checkbox(&mut self.show_statistics, "Show Statistics");
+        ui.checkbox(&mut self.show_capture_image, "Show Capture Image");
     }
 
     fn show_ocr_config(&mut self, ui: &mut egui::Ui) {

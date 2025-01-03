@@ -9,7 +9,7 @@ use log::info;
 use std::{sync::Arc, time::Duration};
 use tokio::time::{sleep, Instant};
 
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(serde::Deserialize, serde::Serialize, Default)]
 #[serde(default)]
 pub struct BackgroundRect {
     start_pos: Pos2,
@@ -22,19 +22,6 @@ pub struct BackgroundRect {
     start_ocr_at: Option<Instant>,
     #[serde(skip)]
     last_ocr_rect_hover_at: Option<Instant>,
-}
-
-impl Default for BackgroundRect {
-    fn default() -> Self {
-        Self {
-            start_pos: Default::default(),
-            end_pos: Default::default(),
-            screenshot_result: Default::default(),
-            start_ocr_at: None,
-            last_ocr_rect_hover_at: None,
-            hide_ocr_rects: Default::default(),
-        }
-    }
 }
 
 pub fn start_ocr_id() -> Id {
@@ -76,8 +63,10 @@ impl BackgroundRect {
             self.screenshot_result.reset();
         }
 
-        if let Some(capture_image) = &self.screenshot_result.value.capture_image {
-            show_image_in_window(ctx, capture_image);
+        if settings.show_capture_image {
+            if let Some(capture_image) = &self.screenshot_result.value.capture_image {
+                show_image_in_window(ctx, capture_image);
+            }
         }
     }
 

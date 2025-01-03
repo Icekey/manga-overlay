@@ -1,6 +1,9 @@
-use egui::{Color32, Id, Pos2, Rect, RichText, Sense, Vec2};
+use std::time::{Duration, Instant};
 
-use crate::action::{get_translation, ResultData, ScreenshotResult};
+use egui::{Color32, Id, Pos2, Rect, RichText, Sense, Vec2};
+use tokio::spawn;
+
+use crate::action::{self, get_translation, ResultData, ScreenshotResult};
 
 use super::mouse_hover::get_frame_mouse_position;
 
@@ -161,11 +164,56 @@ fn show_ocr_info_window(ctx: &egui::Context, rect: &Rect, result: &ResultData) {
 
             if let Some(info) = selected_jpn_data {
                 ui.separator();
-                for info_row in info.get_info_rows() {
-                    ui.label(get_info_text(info_row));
-                }
+                show_jpn_data_info(ui, info);
+                update_kanji_statistic(ui, info);
             }
         });
+}
+
+pub fn show_jpn_data_info(ui: &mut egui::Ui, info: &crate::jpn::JpnData) {
+    for info_row in info.get_info_rows() {
+        ui.label(get_info_text(info_row));
+    }
+}
+
+fn update_kanji_statistic(ui: &mut egui::Ui, info: &crate::jpn::JpnData) {
+    let id = Id::new("show_kanji_timer");
+    let kanji_timer = ui.data(|x| x.get_temp::<KanjiStatisticTimer>(id));
+
+    if let Some(mut timer) = kanji_timer {
+        if !timer.statistic_updated && timer.timestamp.elapsed() >= Duration::from_millis(500) {
+            timer.statistic_updated = true;
+            ui.data_mut(|x| x.insert_temp(id, timer));
+            let kanji = info.get_kanji();
+
+            spawn(async move {
+                let _ = action::increment_kanji_statistic(kanji).await;
+            });
+            return;
+        }
+        if timer.kanji == info.get_kanji() {
+            return;
+        }
+    }
+    ui.data_mut(|x| x.insert_temp(id, KanjiStatisticTimer::new(info.get_kanji())));
+}
+
+#[derive(Clone, Debug)]
+struct KanjiStatisticTimer {
+    kanji: String,
+    timestamp: Instant,
+    statistic_updated: bool,
+}
+
+impl KanjiStatisticTimer {
+    fn new(kanji: String) -> Self {
+        let timestamp = Instant::now();
+        Self {
+            kanji,
+            timestamp,
+            statistic_updated: false,
+        }
+    }
 }
 
 fn get_info_text(text: impl Into<String>) -> RichText {

@@ -195,31 +195,25 @@ pub async fn get_translation(input: &str) -> String {
     translation
 }
 
-#[derive(Serialize, serde::Deserialize)]
-pub struct MousePosition {
-    x: i32,
-    y: i32,
-}
-
-async fn load_history() -> Vec<HistoryData> {
+pub async fn load_history() -> Vec<HistoryData> {
     return database::load_full_history().unwrap_or_else(|err| {
         log::error!("Failed to load history: {err}");
         vec![]
     });
 }
 
-async fn increment_kanji_statistic(kanji: String) -> KanjiStatistic {
+pub async fn increment_kanji_statistic(kanji: String) -> KanjiStatistic {
     database::increment_kanji_statistic(&kanji).expect("Failed to increment kanji statistic")
 }
 
-async fn load_statistic() -> Vec<KanjiStatistic> {
+pub(crate) async fn load_statistic() -> Vec<KanjiStatistic> {
     return database::load_statistic().unwrap_or_else(|err| {
         log::error!("Failed to load statistic: {err}");
         vec![]
     });
 }
 
-async fn get_kanji_jpn_data(kanji: String) -> Option<JpnData> {
-    let vec = get_jpn_data(&kanji).await;
+pub async fn get_kanji_jpn_data(kanji: &str) -> Option<JpnData> {
+    let vec = get_jpn_data(kanji).await;
     vec.into_iter().flatten().next()
 }

@@ -1,4 +1,6 @@
 use super::background_rect::BackgroundRect;
+use super::kanji_history_ui::HistoryDataUi;
+use super::kanji_statistic_ui::KanjiStatisticUi;
 use super::settings::AppSettings;
 use super::show_ui::ShowUi;
 
@@ -7,27 +9,30 @@ use super::show_ui::ShowUi;
 pub struct OcrApp {
     pub settings: AppSettings,
     pub background_rect: BackgroundRect,
+    pub kanji_statistic: KanjiStatisticUi,
+    pub history: HistoryDataUi,
 }
 
 impl OcrApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        if let Some(storage) = cc.storage {
+        let ocr_app: Self = if let Some(storage) = cc.storage {
             let storage: Self = eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
 
             let ctx = &cc.egui_ctx;
-            // ctx.send_viewport_cmd(egui::ViewportCommand::MousePassthrough(
-            //     storage.settings.mouse_passthrough,
-            // ));
 
             init_font(ctx);
             ctx.send_viewport_cmd(egui::ViewportCommand::Decorations(
                 storage.settings.decorations,
             ));
 
-            return storage;
-        }
+            storage
+        } else {
+            Default::default()
+        };
 
-        Default::default()
+        ocr_app.kanji_statistic.init_updater();
+        ocr_app.history.init_updater();
+        ocr_app
     }
 }
 
@@ -79,6 +84,13 @@ impl eframe::App for OcrApp {
         self.background_rect.show(ctx, &self.settings);
 
         self.settings.show(ctx);
+
+        if self.settings.show_statistics {
+            self.kanji_statistic.show(ctx);
+        }
+        if self.settings.show_history {
+            self.history.show(ctx);
+        }
 
         self.update_mouse_passthrough(ctx);
 

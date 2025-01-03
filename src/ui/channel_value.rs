@@ -1,5 +1,4 @@
 use ::serde::{Deserialize, Serialize};
-use log::info;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 
 #[derive(Deserialize, Serialize)]
@@ -31,7 +30,6 @@ impl<T: Default> ChannelValue<T> {
 
     pub fn update(&mut self) -> bool {
         if let Ok(value) = self.rx.try_recv() {
-            info!("Received message");
             self.value = value;
             return true;
         }
