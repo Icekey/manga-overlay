@@ -235,7 +235,7 @@ impl ResultData {
     }
 }
 
-fn scale_rect(rect: Rect, scale_factor: f32) -> Rect {
+pub fn scale_rect(rect: Rect, scale_factor: f32) -> Rect {
     Rect::from_min_size(
         Pos2::new(rect.min.x * scale_factor, rect.min.y * scale_factor),
         Vec2 {

@@ -1,4 +1,7 @@
-use super::{channel_value::ChannelValue, mouse_hover::get_frame_rect, settings::AppSettings};
+use super::{
+    channel_value::ChannelValue, mouse_hover::get_frame_rect, screenshot_result_ui::scale_rect,
+    settings::AppSettings,
+};
 use crate::{
     action::{run_ocr, ScreenshotParameter, ScreenshotResult},
     ocr::OcrBackend,
@@ -49,7 +52,7 @@ impl BackgroundRect {
         }
         let bg_response = self.draw_background(ctx);
 
-        if self.update_drag(&bg_response.response) {
+        if self.update_drag(&bg_response.response, ctx.zoom_factor()) {
             self.start_ocr_at = Some(Instant::now());
         };
 
@@ -113,16 +116,16 @@ fn show_image_in_window(ctx: &egui::Context, capture_image: &image::DynamicImage
 }
 
 impl BackgroundRect {
-    fn update_drag(&mut self, response: &egui::Response) -> bool {
+    fn update_drag(&mut self, response: &egui::Response, zoom_factor: f32) -> bool {
         if response.drag_started() {
             if let Some(mpos) = response.interact_pointer_pos() {
-                self.start_pos = mpos;
+                self.start_pos = mpos * zoom_factor;
             }
         }
 
         if response.dragged() || response.drag_stopped() {
             if let Some(mpos) = response.interact_pointer_pos() {
-                self.end_pos = mpos;
+                self.end_pos = mpos * zoom_factor;
                 if response.drag_stopped() {
                     return true;
                 }
@@ -132,20 +135,15 @@ impl BackgroundRect {
         return false;
     }
 
-    pub fn get_rect(&self) -> Rect {
+    pub fn get_unscaled_rect(&self) -> Rect {
         Rect::from_two_pos(self.start_pos, self.end_pos)
     }
 
     pub fn get_global_rect(&self, ctx: &egui::Context) -> Rect {
-        let mut rect = self.get_rect();
-        let zoom_factor = ctx.zoom_factor();
+        let mut rect = self.get_unscaled_rect();
         let frame_rect = get_frame_rect(ctx);
 
-        rect.set_top(rect.top() * zoom_factor);
-        rect.set_left(rect.left() * zoom_factor);
-        rect.set_right(rect.right() * zoom_factor);
-        rect.set_bottom(rect.bottom() * zoom_factor);
-
+        let zoom_factor = ctx.zoom_factor();
         rect = rect.translate(Vec2::new(
             frame_rect.left() * zoom_factor,
             frame_rect.top() * zoom_factor,
@@ -189,7 +187,9 @@ impl BackgroundRect {
 
     fn draw_background(&mut self, ctx: &egui::Context) -> egui::InnerResponse<()> {
         let frame_rect = get_frame_rect(ctx);
-        let rect = self.get_rect();
+        let rect = self.get_unscaled_rect();
+
+        let rect = scale_rect(rect, 1.0 / ctx.zoom_factor());
 
         if !self.hide_ocr_rects.value {
             if self.screenshot_result.value.show(ctx, &rect) {
