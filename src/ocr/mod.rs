@@ -1,5 +1,4 @@
 use std::sync::{Arc, LazyLock, Mutex};
-use std::thread;
 
 use anyhow::{bail, Result};
 use image::DynamicImage;
@@ -22,16 +21,9 @@ pub struct OcrState {
 
 impl OcrState {
     pub fn init() -> Self {
-        let data = None;
+        let data = MangaOcrInstance::init().ok();
         let data = Mutex::new(data);
         let manga_ocr = Arc::new(data);
-
-        let thread_arc = manga_ocr.clone();
-        thread::spawn(move || {
-            if let Ok(mut x) = thread_arc.lock() {
-                x.replace(MangaOcrInstance::init().unwrap());
-            };
-        });
 
         Self { manga_ocr }
     }
@@ -92,6 +84,7 @@ impl OcrBackend {
     }
 
     pub fn run_ocr(&self, images: &Vec<Image>) -> Result<Vec<String>> {
+        log::info!("run_ocr {}", images.len());
         return match self {
             OcrBackend::Tesseract(x) => images
                 .iter()

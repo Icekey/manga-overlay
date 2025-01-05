@@ -1,12 +1,11 @@
 use std::sync::{Arc, LazyLock, Mutex};
-use std::thread;
 
 use anyhow::Result;
 use image::imageops::FilterType;
 use image::{DynamicImage, GenericImageView, Rgba};
 use imageproc::drawing::draw_hollow_rect_mut;
 use imageproc::rect::Rect;
-use log::{debug, error, info, warn};
+use log::{error, info, warn};
 use ndarray::Array4;
 use ort::execution_providers::{CUDAExecutionProvider, ExecutionProvider};
 use ort::session::builder::GraphOptimizationLevel;
@@ -24,18 +23,9 @@ pub struct DetectState {
 
 impl DetectState {
     pub fn init() -> Self {
-        let data = None;
+        let data = load_model().ok();
         let data = Mutex::new(data);
         let session = Arc::new(data);
-
-        let thread_arc = session.clone();
-        thread::spawn(move || {
-            if let Ok(mut x) = thread_arc.lock() {
-                debug!("init detect model");
-                x.replace(load_model().expect("Failed to load detect model"));
-                debug!("init detect model done");
-            };
-        });
 
         Self { session }
     }
