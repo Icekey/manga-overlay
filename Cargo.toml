@@ -2,6 +2,7 @@
 name = "egui_ocr"
 version = "0.1.0"
 edition = "2021"
+build = "build.rs"
 
 [dependencies]
 eframe = { version = "0.30", default-features = false, features = [
@@ -59,3 +60,6 @@ opt-level = 2
 
 [dev-dependencies]
 serial_test = "3.2.0"
+
+[build-dependencies]
+winres = "0.1.12"
