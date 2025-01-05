@@ -52,9 +52,10 @@ impl BackgroundRect {
         }
         let bg_response = self.draw_background(ctx);
 
-        if self.update_drag(&bg_response.response, ctx.zoom_factor()) {
+        if !settings.mouse_passthrough && self.update_drag(&bg_response.response, ctx.zoom_factor())
+        {
             self.start_ocr_at = Some(Instant::now());
-        };
+        }
 
         if is_start_ocr(&ctx) || self.should_auto_restart(settings) {
             self.start_ocr_at = None;

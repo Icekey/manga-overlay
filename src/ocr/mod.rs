@@ -84,7 +84,6 @@ impl OcrBackend {
     }
 
     pub fn run_ocr(&self, images: &Vec<Image>) -> Result<Vec<String>> {
-        log::info!("run_ocr {}", images.len());
         return match self {
             OcrBackend::Tesseract(x) => images
                 .iter()
