@@ -23,7 +23,7 @@ impl ScreenshotResult {
             let rect = result.get_ui_rect(ctx);
             let rect = rect.translate(screenshot_rect.left_top().to_vec2());
             let rect_is_clicked = clicked_result == i as i32;
-            let area = egui::Area::new(Id::new(format!("ScreenshotResult {}", i)))
+            let area = egui::Area::new(Id::new(format!("ScreenshotResult {} {}", i, result.ocr)))
                 .current_pos(rect.left_top())
                 .sense(Sense::click())
                 .show(ctx, |ui| {
