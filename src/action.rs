@@ -133,7 +133,7 @@ fn get_cutout_image(capture_image: &DynamicImage, rect: &Rect) -> DynamicImage {
     )
 }
 
-#[derive(Deserialize, Serialize, Default, Clone)]
+#[derive(Deserialize, Serialize, Default, Clone, Debug)]
 #[serde(default)]
 pub struct ScreenshotResult {
     #[serde(skip)]
@@ -151,6 +151,18 @@ pub struct ResultData {
     pub ocr: String,
     pub translation: String,
     pub jpn: Vec<Vec<JpnData>>,
+}
+
+impl std::fmt::Debug for ResultData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ResultData")
+            .field("x", &self.x)
+            .field("y", &self.y)
+            .field("w", &self.w)
+            .field("h", &self.h)
+            .field("ocr", &self.ocr)
+            .finish()
+    }
 }
 
 impl ResultData {
@@ -216,4 +228,26 @@ pub(crate) async fn load_statistic() -> Vec<KanjiStatistic> {
 pub async fn get_kanji_jpn_data(kanji: &str) -> Option<JpnData> {
     let vec = get_jpn_data(kanji).await;
     vec.into_iter().flatten().next()
+}
+
+#[cfg(test)]
+mod tests {
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_name() {
+        //load DynamicImage
+        // let image = image::open("../input/input.jpg").expect("Failed to open image");
+        // let run_ocr = run_ocr(
+        //     ScreenshotParameter {
+        //         detect_boxes: true,
+        //         backends: vec![OcrBackend::MangaOcr],
+        //         ..ScreenshotParameter::default()
+        //     },
+        //     image,
+        // )
+        // .await;
+
+        // dbg!(run_ocr);
+        assert!(true);
+    }
 }

@@ -13,19 +13,29 @@ impl ScreenshotResult {
 
         let frame_mouse_position = get_frame_mouse_position(ctx);
         let mut area_hovered = false;
+
+        let clicked_result_id = Id::new("clicked_result");
+        let clicked_result = ctx
+            .data(|x| x.get_temp::<i32>(clicked_result_id))
+            .unwrap_or(-1);
+
         for (i, result) in self.ocr_results.iter().enumerate() {
             let rect = result.get_ui_rect(ctx);
             let rect = rect.translate(screenshot_rect.left_top().to_vec2());
+            let rect_is_clicked = clicked_result == i as i32;
             let area = egui::Area::new(Id::new(format!("ScreenshotResult {}", i)))
                 .current_pos(rect.left_top())
                 .sense(Sense::click())
                 .show(ctx, |ui| {
                     ui.set_width(rect.width());
                     ui.set_height(rect.height());
+                    let contains = rect.contains(frame_mouse_position);
 
-                    let color = if rect.contains(frame_mouse_position) {
-                        show_ocr_info_window(ctx, &rect, &result);
+                    if contains || rect_is_clicked {
+                        show_ocr_info_window(ctx, &rect, &result, i);
+                    }
 
+                    let color = if contains {
                         Color32::GREEN
                     } else {
                         Color32::BLUE
@@ -41,6 +51,11 @@ impl ScreenshotResult {
                 } else {
                     set_translation_visible(ctx, !is_translation_visible(ctx))
                 }
+            }
+
+            if area.response.secondary_clicked() {
+                let value: i32 = if rect_is_clicked { -1 } else { i as i32 };
+                ctx.data_mut(|x| x.insert_temp(clicked_result_id, value));
             }
 
             if area.response.hovered() {
@@ -129,13 +144,11 @@ fn is_area_hover_start(ctx: &egui::Context, area_hovered: bool) -> bool {
     !old_area_hovered && area_hovered
 }
 
-fn show_ocr_info_window(ctx: &egui::Context, rect: &Rect, result: &ResultData) {
-    egui::Window::new("OCR Info")
+fn show_ocr_info_window(ctx: &egui::Context, rect: &Rect, result: &ResultData, index: usize) {
+    egui::Window::new(format!("OCR Info {} {}", index, result.ocr))
         .title_bar(false)
-        .resizable(false)
-        .current_pos(Pos2::new(rect.right() + 3.0, rect.top()))
-        .default_width(100.0)
-        .max_width(500.0)
+        .default_pos(Pos2::new(rect.right() + 3.0, rect.top()))
+        .default_width(500.0)
         .show(ctx, |ui| {
             if !result.translation.is_empty() && is_translation_visible(ctx) {
                 ui.label(get_info_text(&result.translation));
