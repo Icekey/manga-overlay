@@ -4,7 +4,7 @@ use serde::Serialize;
 
 use super::table::create_table;
 
-#[derive(Debug, Default, PartialEq, Serialize, serde::Deserialize)]
+#[derive(Debug, Default, PartialEq, Serialize, serde::Deserialize, Clone)]
 pub struct HistoryData {
     pub id: i32,
     pub created_at: String,

@@ -2,7 +2,8 @@ use super::background_rect::BackgroundRect;
 use super::kanji_history_ui::HistoryDataUi;
 use super::kanji_statistic_ui::KanjiStatisticUi;
 use super::settings::AppSettings;
-use super::show_ui::ShowUi;
+use crate::ui::event::EventHandler;
+use egui::Context;
 
 #[derive(serde::Deserialize, serde::Serialize, Default)]
 #[serde(default)]
@@ -30,13 +31,50 @@ impl OcrApp {
             Default::default()
         };
 
-        ocr_app.kanji_statistic.init_updater();
-        ocr_app.history.init_updater();
+        ocr_app.kanji_statistic.init_updater(cc.egui_ctx.clone());
+        ocr_app.history.init_updater(cc.egui_ctx.clone());
         ocr_app
+    }
+
+    fn show(&mut self, ctx: &Context) {
+        self.background_rect.show(ctx, &self.settings);
+
+        self.settings.show(ctx);
+
+        if self.settings.show_statistics {
+            self.kanji_statistic.show(ctx);
+        }
+        if self.settings.show_history {
+            self.history.show(ctx);
+        }
+
+        self.update_mouse_passthrough(ctx);
+
+        self.draw_mouse_position(ctx);
     }
 }
 
-fn init_font(ctx: &egui::Context) {
+impl eframe::App for OcrApp {
+    /// Called each time the UI needs repainting, which may be many times per second.
+    fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
+        ctx.update_state(self);
+
+        ctx.set_zoom_factor(self.settings.zoom_factor);
+
+        self.show(ctx);
+    }
+
+    /// Called by the frame work to save state before shutdown.
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        eframe::set_value(storage, eframe::APP_KEY, self);
+    }
+
+    fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
+        self.settings.clear_color.to_normalized_gamma_f32()
+    }
+}
+
+fn init_font(ctx: &Context) {
     let mut fonts = egui::FontDefinitions::default();
 
     // Install my own font (maybe supporting non-latin characters).
@@ -65,35 +103,4 @@ fn init_font(ctx: &egui::Context) {
 
     // Tell egui to use these fonts:
     ctx.set_fonts(fonts);
-}
-
-impl eframe::App for OcrApp {
-    /// Called by the frame work to save state before shutdown.
-    fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        eframe::set_value(storage, eframe::APP_KEY, self);
-    }
-
-    fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
-        self.settings.clear_color.to_normalized_gamma_f32()
-    }
-
-    /// Called each time the UI needs repainting, which may be many times per second.
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        ctx.set_zoom_factor(self.settings.zoom_factor);
-
-        self.background_rect.show(ctx, &self.settings);
-
-        self.settings.show(ctx);
-
-        if self.settings.show_statistics {
-            self.kanji_statistic.show(ctx);
-        }
-        if self.settings.show_history {
-            self.history.show(ctx);
-        }
-
-        self.update_mouse_passthrough(ctx);
-
-        self.draw_mouse_position(ctx);
-    }
 }

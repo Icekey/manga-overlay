@@ -1,44 +1,35 @@
 use std::time::Duration;
 
-use egui::{CentralPanel, ScrollArea, Sense, SidePanel, TopBottomPanel};
+use egui::{CentralPanel, Context, ScrollArea, Sense, SidePanel, TopBottomPanel};
 use egui_extras::{Column, TableBuilder};
 use tokio::{spawn, time::sleep};
 
+use super::screenshot_result_ui::show_jpn_data_info;
+use crate::ui::event::Event::{UpdateKanjiStatistic, UpdateSelectedJpnData};
+use crate::ui::event::EventHandler;
 use crate::{action, database::KanjiStatistic, jpn::JpnData};
-
-use super::{channel_value::ChannelValue, screenshot_result_ui::show_jpn_data_info};
 
 #[derive(serde::Deserialize, serde::Serialize, Default)]
 #[serde(default)]
 pub struct KanjiStatisticUi {
-    kanji_statistic: ChannelValue<Vec<KanjiStatistic>>,
-    selected_kanji_index: Option<usize>,
-    selected_jpn_data: ChannelValue<JpnData>,
+    pub kanji_statistic: Vec<KanjiStatistic>,
+    pub selected_kanji_index: Option<usize>,
+    pub selected_jpn_data: JpnData,
 }
 
 impl KanjiStatisticUi {
-    pub fn init_updater(&self) {
-        let tx = self.kanji_statistic.tx();
-
+    pub fn init_updater(&self, ctx: Context) {
         spawn(async move {
             loop {
                 let kanji_statistic = action::load_statistic().await;
 
-                let _ = tx.send(kanji_statistic).await;
+                ctx.emit(UpdateKanjiStatistic(kanji_statistic));
                 sleep(Duration::from_secs(1)).await;
             }
         });
     }
 
     pub fn show(&mut self, ctx: &egui::Context) {
-        if self.kanji_statistic.update() {
-            if self.selected_kanji_index.is_none() {
-                self.update_selected_kanji_statistic(0);
-            }
-        }
-
-        self.selected_jpn_data.update();
-
         egui::Window::new("Kanji Statistic").show(ctx, |ui| {
             SidePanel::left("Kanji Statistic Side Panel").show_inside(ui, |ui| {
                 self.show_table(ui);
@@ -49,13 +40,14 @@ impl KanjiStatisticUi {
             CentralPanel::default().show_inside(ui, |ui| {
                 ScrollArea::vertical().show(ui, |ui| {
                     ui.set_width(600.0);
-                    show_jpn_data_info(ui, &self.selected_jpn_data.value);
+                    show_jpn_data_info(ui, &self.selected_jpn_data);
                 });
             });
         });
     }
 
     fn show_table(&mut self, ui: &mut egui::Ui) {
+        let ctx = ui.ctx().clone();
         TableBuilder::new(ui)
             .sense(Sense::click())
             .column(Column::auto())
@@ -69,8 +61,8 @@ impl KanjiStatisticUi {
                 });
             })
             .body(|body| {
-                body.rows(30.0, self.kanji_statistic.value.len(), |mut row| {
-                    if let Some(value) = self.kanji_statistic.value.get(row.index()) {
+                body.rows(30.0, self.kanji_statistic.len(), |mut row| {
+                    if let Some(value) = self.kanji_statistic.get(row.index()) {
                         row.set_selected(self.selected_kanji_index == Some(row.index()));
 
                         row.col(|ui| {
@@ -81,21 +73,21 @@ impl KanjiStatisticUi {
                         });
 
                         if row.response().clicked() {
-                            self.update_selected_kanji_statistic(row.index());
+                            self.update_selected_kanji_statistic(row.index(), &ctx);
                         }
                     }
                 });
             });
     }
 
-    fn update_selected_kanji_statistic(&mut self, index: usize) {
+    pub(crate) fn update_selected_kanji_statistic(&mut self, index: usize, ctx: &Context) {
         self.selected_kanji_index = Some(index);
-        if let Some(kanji_statistic) = self.kanji_statistic.value.get(index) {
-            let tx = self.selected_jpn_data.tx();
+        if let Some(kanji_statistic) = self.kanji_statistic.get(index) {
             let kanji = kanji_statistic.kanji.clone();
+            let ctx = ctx.clone();
             spawn(async move {
                 if let Some(jpn_data) = action::get_kanji_jpn_data(&kanji).await {
-                    let _ = tx.send(jpn_data).await;
+                    ctx.emit(UpdateSelectedJpnData(jpn_data));
                 };
             });
         }

@@ -1,18 +1,16 @@
-use egui::{CollapsingHeader, Id};
-use log::info;
-use rusty_tesseract::get_tesseract_langs;
-
+use super::background_rect::start_ocr_id;
 use crate::{
     action::open_workdir,
     ocr::{EasyOcrParameter, TesseractParameter},
 };
-
-use super::{background_rect::start_ocr_id, show_ui::ShowUi};
+use egui::{CollapsingHeader, Color32, Id};
+use log::info;
+use rusty_tesseract::get_tesseract_langs;
 
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)]
 pub struct AppSettings {
-    pub clear_color: egui::Color32,
+    pub clear_color: Color32,
     pub mouse_passthrough: bool,
     pub decorations: bool,
     pub zoom_factor: f32,
@@ -66,8 +64,8 @@ impl Default for AppSettings {
     }
 }
 
-impl ShowUi for AppSettings {
-    fn show(&mut self, ctx: &egui::Context) {
+impl AppSettings {
+    pub(crate) fn show(&mut self, ctx: &egui::Context) {
         let window = egui::Window::new("Settings");
         window.show(ctx, |ui| {
             self.show_window_settings(ui);
@@ -79,9 +77,7 @@ impl ShowUi for AppSettings {
             }
         });
     }
-}
 
-impl AppSettings {
     fn show_window_settings(&mut self, ui: &mut egui::Ui) {
         egui::widgets::global_theme_preference_buttons(ui);
 

@@ -3,13 +3,13 @@ use egui::{Color32, Context, Id, Order, Pos2, Rect, Vec2};
 use enigo::{Enigo, Mouse, Settings as EnigoSettings};
 
 impl OcrApp {
-    pub fn update_mouse_passthrough(&self, ctx: &egui::Context) {
+    pub fn update_mouse_passthrough(&self, ctx: &Context) {
         ctx.send_viewport_cmd(egui::ViewportCommand::MousePassthrough(
             self.should_mouse_passthrough(ctx),
         ));
     }
 
-    pub fn draw_mouse_position(&self, ctx: &egui::Context) {
+    pub fn draw_mouse_position(&self, ctx: &Context) {
         let color = if self.should_mouse_passthrough(ctx) {
             Color32::RED
         } else {
@@ -22,20 +22,20 @@ impl OcrApp {
         });
     }
 
-    fn should_mouse_passthrough(&self, ctx: &egui::Context) -> bool {
+    fn should_mouse_passthrough(&self, ctx: &Context) -> bool {
         self.settings.mouse_passthrough && is_mouse_over_background(ctx)
     }
 }
 
-pub fn is_mouse_over_background(ctx: &egui::Context) -> bool {
+pub fn is_mouse_over_background(ctx: &Context) -> bool {
     if let Some(layer_id_at) = ctx.layer_id_at(get_frame_mouse_position(ctx)) {
-        return layer_id_at.order == Order::Background;
+        layer_id_at.order == Order::Background
     } else {
-        return false;
-    };
+        false
+    }
 }
 
-pub fn get_frame_mouse_position(ctx: &egui::Context) -> Pos2 {
+pub fn get_frame_mouse_position(ctx: &Context) -> Pos2 {
     let frame_rect = get_frame_rect(ctx);
 
     let mouse_pos2 = get_mouse_position();

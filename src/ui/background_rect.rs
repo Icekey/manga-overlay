@@ -1,12 +1,11 @@
-use super::{
-    channel_value::ChannelValue, mouse_hover::get_frame_rect, screenshot_result_ui::scale_rect,
-    settings::AppSettings,
-};
+use super::{mouse_hover::get_frame_rect, screenshot_result_ui::scale_rect, settings::AppSettings};
 use crate::{
     action::{run_ocr, ScreenshotParameter, ScreenshotResult},
     ocr::OcrBackend,
 };
 
+use crate::ui::event::Event::{ShowOcrRects, UpdateScreenshotResult};
+use crate::ui::event::EventHandler;
 use egui::{Color32, ColorImage, Id, ImageData, Pos2, Rect, Sense, TextureOptions, Vec2};
 use log::info;
 use std::{sync::Arc, time::Duration};
@@ -18,11 +17,11 @@ pub struct BackgroundRect {
     start_pos: Pos2,
     end_pos: Pos2,
 
-    screenshot_result: ChannelValue<ScreenshotResult>,
-    hide_ocr_rects: ChannelValue<bool>,
+    pub screenshot_result: ScreenshotResult,
+    pub hide_ocr_rects: bool,
 
     #[serde(skip)]
-    start_ocr_at: Option<Instant>,
+    pub start_ocr_at: Option<Instant>,
     #[serde(skip)]
     last_ocr_rect_hover_at: Option<Instant>,
 }
@@ -42,14 +41,6 @@ fn is_start_ocr(ctx: &egui::Context) -> bool {
 
 impl BackgroundRect {
     pub fn show(&mut self, ctx: &egui::Context, settings: &AppSettings) {
-        self.hide_ocr_rects.update();
-
-        if self.screenshot_result.update() {
-            if self.start_ocr_at.is_none() && settings.auto_restart_ocr {
-                self.start_ocr_at = Some(Instant::now());
-            }
-            self.hide_ocr_rects.set(false);
-        }
         let bg_response = self.draw_background(ctx);
 
         if !settings.mouse_passthrough && self.update_drag(&bg_response.response, ctx.zoom_factor())
@@ -59,16 +50,16 @@ impl BackgroundRect {
 
         if is_start_ocr(&ctx) || self.should_auto_restart(settings) {
             self.start_ocr_at = None;
-            self.hide_ocr_rects.set(true);
+            self.hide_ocr_rects = true;
             self.start_ocr(ctx, settings);
         }
 
         if bg_response.response.drag_started() {
-            self.screenshot_result.reset();
+            self.screenshot_result = Default::default();
         }
 
         if settings.show_capture_image {
-            if let Some(capture_image) = &self.screenshot_result.value.capture_image {
+            if let Some(capture_image) = &self.screenshot_result.capture_image {
                 show_image_in_window(ctx, capture_image);
             }
         }
@@ -154,8 +145,6 @@ impl BackgroundRect {
     }
 
     fn start_ocr(&self, ctx: &egui::Context, settings: &AppSettings) {
-        let tx = self.screenshot_result.tx();
-
         let global_rect = self.get_global_rect(ctx);
 
         let screenshot_parameter = ScreenshotParameter {
@@ -169,20 +158,20 @@ impl BackgroundRect {
         };
 
         let screenshot_delay_ms = settings.screenshot_delay_ms;
-        let hide_ocr_rects_tx = self.hide_ocr_rects.tx();
+        let ctx = ctx.clone();
         tokio::spawn(async move {
             sleep(Duration::from_millis(screenshot_delay_ms)).await;
 
             let image = screenshot_parameter.get_screenshot().unwrap();
 
-            hide_ocr_rects_tx.send(false).await.unwrap();
+            ctx.emit(ShowOcrRects);
 
             info!("Start screenshot");
             let screenshot = run_ocr(screenshot_parameter, image).await.unwrap();
 
             info!("Stop screenshot");
 
-            let _ = tx.send(screenshot).await;
+            ctx.emit(UpdateScreenshotResult(screenshot));
         });
     }
 
@@ -192,8 +181,8 @@ impl BackgroundRect {
 
         let rect = scale_rect(rect, 1.0 / ctx.zoom_factor());
 
-        if !self.hide_ocr_rects.value {
-            if self.screenshot_result.value.show(ctx, &rect) {
+        if !self.hide_ocr_rects {
+            if self.screenshot_result.show(ctx, &rect) {
                 self.last_ocr_rect_hover_at = Some(Instant::now());
             }
         }

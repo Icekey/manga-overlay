@@ -1,35 +1,31 @@
 use std::time::Duration;
 
-use egui::{CentralPanel, TopBottomPanel};
+use egui::{CentralPanel, Context, TopBottomPanel};
 use egui_extras::{Column, TableBuilder};
 use tokio::{spawn, time::sleep};
 
+use crate::ui::event::Event::UpdateHistoryData;
+use crate::ui::event::EventHandler;
 use crate::{action, database::HistoryData};
-
-use super::channel_value::ChannelValue;
 
 #[derive(serde::Deserialize, serde::Serialize, Default)]
 #[serde(default)]
 pub struct HistoryDataUi {
-    history_data: ChannelValue<Vec<HistoryData>>,
+    pub history_data: Vec<HistoryData>,
 }
 impl HistoryDataUi {
-    pub fn init_updater(&self) {
-        let tx = self.history_data.tx();
-
+    pub fn init_updater(&self, ctx: Context) {
         spawn(async move {
             loop {
                 let history_data = action::load_history().await;
 
-                let _ = tx.send(history_data).await;
+                ctx.emit(UpdateHistoryData(history_data));
                 sleep(Duration::from_secs(1)).await;
             }
         });
     }
 
     pub fn show(&mut self, ctx: &egui::Context) {
-        self.history_data.update();
-
         egui::Window::new("HistoryDataUi").show(ctx, |ui| {
             TopBottomPanel::bottom("HistoryDataUi invisible bottom panel")
                 .show_separator_line(false)
@@ -55,8 +51,8 @@ impl HistoryDataUi {
                 });
             })
             .body(|body| {
-                body.rows(30.0, self.history_data.value.len(), |mut row| {
-                    if let Some(value) = self.history_data.value.get(row.index()) {
+                body.rows(30.0, self.history_data.len(), |mut row| {
+                    if let Some(value) = self.history_data.get(row.index()) {
                         row.col(|ui| {
                             ui.label(&value.created_at);
                         });
