@@ -37,6 +37,8 @@ pub struct AppSettings {
     pub show_statistics: bool,
     pub show_history: bool,
     pub show_capture_image: bool,
+    pub show_debug_image: bool,
+    pub threshold: f32,
 }
 
 impl Default for AppSettings {
@@ -60,6 +62,8 @@ impl Default for AppSettings {
             show_statistics: false,
             show_history: false,
             show_capture_image: false,
+            show_debug_image: false,
+            threshold: 0.5,
         }
     }
 }
@@ -109,6 +113,7 @@ impl AppSettings {
         ui.checkbox(&mut self.show_history, "Show History");
         ui.checkbox(&mut self.show_statistics, "Show Statistics");
         ui.checkbox(&mut self.show_capture_image, "Show Capture Image");
+        ui.checkbox(&mut self.show_debug_image, "Show Debug Image");
     }
 
     fn show_ocr_config(&mut self, ui: &mut egui::Ui) {
@@ -116,6 +121,7 @@ impl AppSettings {
             ui.horizontal(|ui| {
                 ui.selectable_value(&mut self.detect_boxes, false, "Full Capture");
                 ui.selectable_value(&mut self.detect_boxes, true, "Detect Boxes");
+                ui.add(egui::Slider::new(&mut self.threshold, 0.0..=1.0).text("Box Threshold"));
             });
 
             ui.horizontal(|ui| {

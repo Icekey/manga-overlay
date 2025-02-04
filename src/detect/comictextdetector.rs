@@ -69,9 +69,6 @@ pub fn load_model() -> Result<Session> {
 }
 
 pub fn detect_boxes(model: &Session, original_img: &DynamicImage) -> Result<Vec<Boxes>> {
-    // let mut input: ArrayBase<OwnedRepr<f32>, Dim<[Ix; 4]>> =
-    //     Array::zeros((1, 3, INPUT_WIDTH as usize, INPUT_HEIGHT as usize));
-
     let mut input = Array4::<f32>::zeros((1, 3, INPUT_WIDTH as usize, INPUT_HEIGHT as usize));
 
     let img = original_img.resize_exact(
@@ -100,7 +97,7 @@ pub fn detect_boxes(model: &Session, original_img: &DynamicImage) -> Result<Vec<
         .map(|row| Boxes::new(row.iter().copied().collect()))
         .collect();
 
-    return Ok(rows);
+    Ok(rows)
 }
 
 #[derive(Clone, Debug)]
@@ -227,7 +224,7 @@ pub fn run_model(model: &Session, threshold: f32, img: &mut DynamicImage) -> Res
         .filter(|x| x.confidence > threshold)
         .collect();
 
-    Ok(combine_overlapping_rects(boxes))
+    Ok(boxes)
 }
 
 pub fn draw_rects(img: &mut DynamicImage, boxes: &Vec<Boxes>) {

@@ -6,9 +6,9 @@ use crate::{
 
 use crate::ui::event::Event::{ShowOcrRects, UpdateScreenshotResult};
 use crate::ui::event::EventHandler;
-use egui::{Color32, ColorImage, Id, ImageData, Pos2, Rect, Sense, TextureOptions, Vec2};
+use egui::{Color32, Id, Pos2, Rect, Sense, TextureHandle, Vec2};
 use log::info;
-use std::{sync::Arc, time::Duration};
+use std::time::Duration;
 use tokio::time::{sleep, Instant};
 
 #[derive(serde::Deserialize, serde::Serialize, Default)]
@@ -24,6 +24,11 @@ pub struct BackgroundRect {
     pub start_ocr_at: Option<Instant>,
     #[serde(skip)]
     last_ocr_rect_hover_at: Option<Instant>,
+
+    #[serde(skip)]
+    pub capture_image_handle: Option<TextureHandle>,
+    #[serde(skip)]
+    pub debug_image_handle: Option<TextureHandle>,
 }
 
 pub fn start_ocr_id() -> Id {
@@ -59,9 +64,10 @@ impl BackgroundRect {
         }
 
         if settings.show_capture_image {
-            if let Some(capture_image) = &self.screenshot_result.capture_image {
-                show_image_in_window(ctx, capture_image);
-            }
+            show_image_in_window(ctx, "Capture Image", self.capture_image_handle.clone());
+        }
+        if settings.show_debug_image {
+            show_image_in_window(ctx, "Debug Image", self.debug_image_handle.clone());
         }
     }
 
@@ -80,30 +86,17 @@ impl BackgroundRect {
     }
 }
 
-fn show_image_in_window(ctx: &egui::Context, capture_image: &image::DynamicImage) {
-    egui::Window::new("Image").show(ctx, |ui| {
-        let image = capture_image.clone();
-
-        let mut screen_texture = ctx.load_texture(
-            "screen",
-            ImageData::Color(Arc::new(ColorImage::new(
-                [image.width() as usize, image.height() as usize],
-                Color32::TRANSPARENT,
-            ))),
-            TextureOptions::default(),
-        );
-        screen_texture.set(
-            ColorImage::from_rgba_unmultiplied(
-                [image.width() as usize, image.height() as usize],
-                &*image.clone().as_bytes(),
-            ),
-            TextureOptions::default(),
-        );
-        ui.add(
-            egui::Image::new(&screen_texture)
-                .fit_to_original_size(1.0 / ctx.zoom_factor())
-                .rounding(10.0),
-        );
+fn show_image_in_window(ctx: &egui::Context, title: &str, texture: Option<TextureHandle>) {
+    egui::Window::new(title).show(ctx, |ui| {
+        if let Some(texture) = texture {
+            ui.add(
+                egui::Image::new(&texture)
+                    .fit_to_original_size(1.0 / ctx.zoom_factor())
+                    .rounding(10.0),
+            );
+        } else {
+            ui.label("No Image");
+        }
     });
 }
 
@@ -155,6 +148,7 @@ impl BackgroundRect {
             detect_boxes: settings.detect_boxes,
             full_capture_ocr: !settings.detect_boxes,
             backends: get_backends(settings),
+            threshold: settings.threshold,
         };
 
         let screenshot_delay_ms = settings.screenshot_delay_ms;

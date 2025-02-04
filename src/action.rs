@@ -1,13 +1,13 @@
 use crate::database::{HistoryData, KanjiStatistic};
-use ::serde::{Deserialize, Serialize};
 use futures::future::join_all;
 use image::DynamicImage;
 use imageproc::rect::Rect;
 use itertools::Itertools;
 use log::info;
 use open::that;
+use ::serde::{Deserialize, Serialize};
 
-use crate::detect::comictextdetector::{Boxes, DETECT_STATE};
+use crate::detect::comictextdetector::{combine_overlapping_rects, Boxes, DETECT_STATE};
 use crate::jpn::{dict, get_jpn_data, JpnData};
 use crate::ocr::OcrBackend;
 use crate::translation::google::translate;
@@ -27,6 +27,7 @@ pub struct ScreenshotParameter {
     pub detect_boxes: bool,
     pub full_capture_ocr: bool,
     pub backends: Vec<OcrBackend>,
+    pub threshold: f32,
 }
 
 pub async fn run_ocr(
@@ -36,11 +37,15 @@ pub async fn run_ocr(
     let backends: Vec<OcrBackend> = parameter.backends;
 
     //Detect Boxes
-    let boxes: Vec<Boxes> = if parameter.detect_boxes {
-        DETECT_STATE.clone().run_model(0.5, &mut capture_image)
+    let all_boxes: Vec<Boxes> = if parameter.detect_boxes {
+        DETECT_STATE
+            .clone()
+            .run_model(parameter.threshold, &mut capture_image)
     } else {
         vec![]
     };
+
+    let boxes = combine_overlapping_rects(all_boxes.clone());
 
     //Run OCR on Boxes
     let mut rects: Vec<Rect> = boxes.iter().map(|x| x.get_rect(&capture_image)).collect();
@@ -79,10 +84,14 @@ pub async fn run_ocr(
     }
 
     //Draw Boxes
+    let mut capture_image = capture_image.clone();
+    let mut debug_image = capture_image.clone();
     detect::comictextdetector::draw_rects(&mut capture_image, &boxes);
+    detect::comictextdetector::draw_rects(&mut debug_image, &all_boxes);
 
     Ok(ScreenshotResult {
         capture_image: Some(capture_image),
+        debug_image: Some(debug_image),
         ocr_results,
     })
 }
@@ -138,6 +147,8 @@ fn get_cutout_image(capture_image: &DynamicImage, rect: &Rect) -> DynamicImage {
 pub struct ScreenshotResult {
     #[serde(skip)]
     pub capture_image: Option<DynamicImage>,
+    #[serde(skip)]
+    pub debug_image: Option<DynamicImage>,
     pub ocr_results: Vec<ResultData>,
 }
 

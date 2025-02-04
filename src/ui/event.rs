@@ -2,7 +2,10 @@ use crate::action::ScreenshotResult;
 use crate::database::{HistoryData, KanjiStatistic};
 use crate::jpn::JpnData;
 use crate::OcrApp;
-use egui::{Context, Id};
+use eframe::epaint::textures::TextureOptions;
+use eframe::epaint::ColorImage;
+use egui::{Context, Id, TextureHandle};
+use image::DynamicImage;
 use std::sync::LazyLock;
 use tokio::time::Instant;
 
@@ -55,6 +58,18 @@ impl EventHandler for Context {
                     background_rect.start_ocr_at = Some(Instant::now());
                 }
                 background_rect.hide_ocr_rects = false;
+
+                background_rect.capture_image_handle = create_texture(
+                    &self,
+                    background_rect.screenshot_result.capture_image.as_ref(),
+                    "capture_image_texture",
+                );
+
+                background_rect.debug_image_handle = create_texture(
+                    &self,
+                    background_rect.screenshot_result.debug_image.as_ref(),
+                    "debug_image_texture",
+                );
             }
             Event::ShowOcrRects => {
                 state.background_rect.hide_ocr_rects = true;
@@ -75,4 +90,21 @@ impl EventHandler for Context {
             }
         }
     }
+}
+
+fn create_texture(
+    ctx: &Context,
+    image: Option<&DynamicImage>,
+    name: &str,
+) -> Option<TextureHandle> {
+    image.map(|image| {
+        ctx.load_texture(
+            name,
+            ColorImage::from_rgba_unmultiplied(
+                [image.width() as usize, image.height() as usize],
+                &*image.clone().as_bytes(),
+            ),
+            TextureOptions::default(),
+        )
+    })
 }
