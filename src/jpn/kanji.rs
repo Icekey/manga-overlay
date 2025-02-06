@@ -1,13 +1,10 @@
-use std::collections::HashMap;
-
-use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DefaultOnNull};
+use std::collections::HashMap;
+use std::sync::LazyLock;
 
-lazy_static! {
-    pub static ref KANJI_MAP: HashMap<char, KanjiData> =
-        get_map_from_json(include_str!("kanji.json"));
-}
+static KANJI_MAP: LazyLock<HashMap<char, KanjiData>> =
+    LazyLock::new(|| get_map_from_json(include_str!("kanji.json")));
 
 #[serde_as]
 #[derive(Serialize, Deserialize, Clone, Eq, PartialEq, Debug, Default)]

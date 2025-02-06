@@ -3,14 +3,11 @@ use std::io::{Lines, Write};
 use std::os::windows::process::CommandExt;
 use std::process::Stdio;
 use std::process::{ChildStdin, ChildStdout, Command};
-use std::sync::Mutex;
 
 use anyhow::{Context, Result};
 use itertools::Itertools;
-use lazy_static::lazy_static;
 use log::{debug, info};
 use rusty_tesseract::Image;
-
 pub fn run_manga_ocr(images: &Vec<Image>, manga_ocr: &mut MangaOcrInstance) -> Result<Vec<String>> {
     let paths = images
         .iter()
@@ -18,11 +15,6 @@ pub fn run_manga_ocr(images: &Vec<Image>, manga_ocr: &mut MangaOcrInstance) -> R
         .join(",");
 
     manga_ocr.run_ocr(&paths)
-}
-
-lazy_static! {
-    pub static ref MANGA_OCR_INSTANCE: Mutex<MangaOcrInstance> =
-        Mutex::new(MangaOcrInstance::init().unwrap());
 }
 
 pub struct MangaOcrInstance {

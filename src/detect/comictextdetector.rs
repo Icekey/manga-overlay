@@ -111,10 +111,10 @@ pub struct Boxes {
 
 impl Boxes {
     fn new(row: Vec<f32>) -> Self {
-        let x = row[0] / INPUT_WIDTH;
-        let y = row[1] / INPUT_HEIGHT;
-        let w = row[2] / INPUT_WIDTH;
-        let h = row[3] / INPUT_HEIGHT;
+        let x = (row[0] / INPUT_WIDTH).max(0.0);
+        let y = (row[1] / INPUT_HEIGHT).max(0.0);
+        let w = (row[2] / INPUT_WIDTH).max(0.0);
+        let h = (row[3] / INPUT_HEIGHT).max(0.0);
 
         let confidence = row[4];
 
@@ -128,7 +128,7 @@ impl Boxes {
     }
 
     fn get_top(&self) -> f32 {
-        self.y - self.h / 2.0
+        (self.y - self.h / 2.0).max(0.0)
     }
 
     fn get_bottom(&self) -> f32 {
@@ -136,7 +136,7 @@ impl Boxes {
     }
 
     fn get_left(&self) -> f32 {
-        self.x - self.w / 2.0
+        (self.x - self.w / 2.0).max(0.0)
     }
 
     fn get_right(&self) -> f32 {

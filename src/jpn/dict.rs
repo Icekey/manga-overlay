@@ -1,14 +1,12 @@
 use jmdict::{Entry, KanjiElement, ReadingElement};
-use lazy_static::lazy_static;
 use multimap::MultiMap;
+use std::sync::LazyLock;
 
 const WINDOW_SIZE: usize = 50;
 const LARGEST_WORD_SIZE: usize = 15;
 const STEP_SIZE: usize = WINDOW_SIZE - LARGEST_WORD_SIZE;
 
-lazy_static! {
-    static ref JMDICT_MAP: MultiMap<char, Entry> = create_jmdict_map();
-}
+static JMDICT_MAP: LazyLock<MultiMap<char, Entry>> = LazyLock::new(|| create_jmdict_map());
 
 fn create_jmdict_map() -> MultiMap<char, Entry> {
     let x: Vec<(&'static str, Entry)> = jmdict::entries()
