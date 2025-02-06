@@ -6,6 +6,7 @@ use crate::{
 
 use crate::ui::event::Event::{ShowOcrRects, UpdateScreenshotResult};
 use crate::ui::event::EventHandler;
+use eframe::epaint::StrokeKind;
 use egui::{Color32, Id, Pos2, Rect, Sense, TextureHandle, Vec2};
 use log::info;
 use std::time::Duration;
@@ -92,7 +93,7 @@ fn show_image_in_window(ctx: &egui::Context, title: &str, texture: Option<Textur
             ui.add(
                 egui::Image::new(&texture)
                     .fit_to_original_size(1.0 / ctx.zoom_factor())
-                    .rounding(10.0),
+                    .corner_radius(10.0),
             );
         } else {
             ui.label("No Image");
@@ -190,7 +191,7 @@ impl BackgroundRect {
                 ui.set_height(frame_rect.height());
 
                 ui.painter()
-                    .rect(rect, 0.0, Color32::TRANSPARENT, (1.0, Color32::RED));
+                    .rect(rect, 0.0, Color32::TRANSPARENT, (1.0, Color32::RED), StrokeKind::Middle);
             })
     }
 }

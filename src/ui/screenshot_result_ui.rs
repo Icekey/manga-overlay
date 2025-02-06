@@ -1,6 +1,6 @@
-use std::time::{Duration, Instant};
-
+use eframe::epaint::StrokeKind;
 use egui::{Color32, Id, Pos2, Rect, RichText, Sense, Vec2};
+use std::time::{Duration, Instant};
 use tokio::spawn;
 
 use crate::action::{self, get_translation, ResultData, ScreenshotResult};
@@ -41,8 +41,13 @@ impl ScreenshotResult {
                         Color32::BLUE
                     };
 
-                    ui.painter()
-                        .rect(rect, 0.0, Color32::TRANSPARENT, (1.0, color));
+                    ui.painter().rect(
+                        rect,
+                        0.0,
+                        Color32::TRANSPARENT,
+                        (1.0, color),
+                        StrokeKind::Middle,
+                    );
                 });
 
             if area.response.clicked() {
