@@ -6,3 +6,4 @@ pub mod kanji_statistic_ui;
 pub mod mouse_hover;
 pub mod screenshot_result_ui;
 pub mod settings;
+pub mod shutdown;

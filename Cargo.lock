@@ -1005,6 +1005,7 @@ dependencies = [
  "serial_test",
  "strum",
  "tokio",
+ "tokio-util",
  "winres",
 ]
 
@@ -4441,6 +4442,8 @@ dependencies = [
  "bytes",
  "futures-core",
  "futures-sink",
+ "futures-util",
+ "hashbrown 0.14.5",
  "pin-project-lite",
  "tokio",
 ]

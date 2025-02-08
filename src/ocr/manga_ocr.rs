@@ -25,6 +25,7 @@ const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 impl MangaOcrInstance {
     pub fn init() -> Result<Self> {
+        info!("manga ocr init");
         let mut child = Command::new("cmd")
             .stdout(Stdio::piped())
             .stdin(Stdio::piped())

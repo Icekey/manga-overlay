@@ -1,11 +1,10 @@
 use eframe::epaint::StrokeKind;
 use egui::{Color32, Id, Pos2, Rect, RichText, Sense, Vec2};
 use std::time::{Duration, Instant};
-use tokio::spawn;
-
-use crate::action::{self, get_translation, ResultData, ScreenshotResult};
 
 use super::mouse_hover::get_frame_mouse_position;
+use crate::action::{self, get_translation, ResultData, ScreenshotResult};
+use crate::ui::shutdown::TASK_TRACKER;
 
 impl ScreenshotResult {
     pub fn show(&mut self, ctx: &egui::Context, screenshot_rect: &Rect) -> bool {
@@ -204,7 +203,7 @@ fn update_kanji_statistic(ui: &mut egui::Ui, info: &crate::jpn::JpnData) {
             ui.data_mut(|x| x.insert_temp(id, timer));
             let kanji = info.get_kanji();
 
-            spawn(async move {
+            TASK_TRACKER.spawn(async move {
                 let _ = action::increment_kanji_statistic(kanji).await;
             });
             return;

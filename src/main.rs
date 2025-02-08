@@ -12,7 +12,6 @@ async fn main() -> eframe::Result {
         viewport: egui::ViewportBuilder::default()
             .with_transparent(true)
             .with_always_on_top()
-            .with_inner_size([400.0, 300.0])
             .with_min_inner_size([300.0, 220.0])
             .with_icon(
                 eframe::icon_data::from_png_bytes(&include_bytes!("../resources/icon-256.png")[..])

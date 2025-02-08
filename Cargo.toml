@@ -24,6 +24,7 @@ screenshots = "0.8.10"
 anyhow = "1.0.80"
 jmdict = "2.0.0"
 tokio = { version = "1", features = ["full"] }
+tokio-util = { version = "0.7.13", features = ["rt"] }
 futures = "0.3.28"
 itertools = "0.12.1"
 multimap = "0.10.0"

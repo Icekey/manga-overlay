@@ -2,8 +2,11 @@ use super::background_rect::BackgroundRect;
 use super::kanji_history_ui::HistoryDataUi;
 use super::kanji_statistic_ui::KanjiStatisticUi;
 use super::settings::AppSettings;
+use crate::ocr::OCR_STATE;
 use crate::ui::event::EventHandler;
+use crate::ui::shutdown::{shutdown_tasks, TASK_TRACKER};
 use egui::Context;
+use std::sync::LazyLock;
 
 #[derive(serde::Deserialize, serde::Serialize, Default)]
 #[serde(default)]
@@ -33,10 +36,20 @@ impl OcrApp {
 
         ocr_app.kanji_statistic.init_updater(cc.egui_ctx.clone());
         ocr_app.history.init_updater(cc.egui_ctx.clone());
+
+        TASK_TRACKER.spawn(async {
+            LazyLock::force(&OCR_STATE);
+        });
+
         ocr_app
     }
 
     fn show(&mut self, ctx: &Context) {
+        if ctx.input(|i| i.viewport().close_requested()) {
+            shutdown_tasks();
+            ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
+        }
+
         self.background_rect.show(ctx, &self.settings);
 
         self.settings.show(ctx);

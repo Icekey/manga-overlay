@@ -1,6 +1,7 @@
 use jmdict::{Entry, KanjiElement, ReadingElement};
 use multimap::MultiMap;
 use std::sync::LazyLock;
+use crate::ui::shutdown::TASK_TRACKER;
 
 const WINDOW_SIZE: usize = 50;
 const LARGEST_WORD_SIZE: usize = 15;
@@ -49,7 +50,7 @@ pub async fn async_extract_words(input: &str) -> Vec<(String, Vec<Entry>)> {
 
     let window_input: Vec<_> = windows
         .into_iter()
-        .map(|x| tokio::task::spawn(async move { extract_words(&x) }))
+        .map(|x| TASK_TRACKER.spawn(async move { extract_words(&x) }))
         .collect();
 
     let results: Vec<Vec<(String, Vec<Entry>)>> = futures::future::try_join_all(window_input)

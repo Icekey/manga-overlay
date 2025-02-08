@@ -2,11 +2,12 @@ use std::time::Duration;
 
 use egui::{CentralPanel, Context, ScrollArea, Sense, SidePanel, TopBottomPanel};
 use egui_extras::{Column, TableBuilder};
-use tokio::{spawn, time::sleep};
+use tokio::time::sleep;
 
 use super::screenshot_result_ui::show_jpn_data_info;
 use crate::ui::event::Event::{UpdateKanjiStatistic, UpdateSelectedJpnData};
 use crate::ui::event::EventHandler;
+use crate::ui::shutdown::TASK_TRACKER;
 use crate::{action, database::KanjiStatistic, jpn::JpnData};
 
 #[derive(serde::Deserialize, serde::Serialize, Default)]
@@ -19,7 +20,7 @@ pub struct KanjiStatisticUi {
 
 impl KanjiStatisticUi {
     pub fn init_updater(&self, ctx: Context) {
-        spawn(async move {
+        TASK_TRACKER.spawn(async move {
             loop {
                 let kanji_statistic = action::load_statistic().await;
 
@@ -85,7 +86,7 @@ impl KanjiStatisticUi {
         if let Some(kanji_statistic) = self.kanji_statistic.get(index) {
             let kanji = kanji_statistic.kanji.clone();
             let ctx = ctx.clone();
-            spawn(async move {
+            TASK_TRACKER.spawn(async move {
                 if let Some(jpn_data) = action::get_kanji_jpn_data(&kanji).await {
                     ctx.emit(UpdateSelectedJpnData(jpn_data));
                 };

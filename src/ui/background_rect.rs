@@ -6,6 +6,7 @@ use crate::{
 
 use crate::ui::event::Event::{ShowOcrRects, UpdateScreenshotResult};
 use crate::ui::event::EventHandler;
+use crate::ui::shutdown::TASK_TRACKER;
 use eframe::epaint::StrokeKind;
 use egui::{Color32, Id, Pos2, Rect, Sense, TextureHandle, Vec2};
 use log::info;
@@ -92,7 +93,7 @@ fn show_image_in_window(ctx: &egui::Context, title: &str, texture: Option<Textur
         if let Some(texture) = texture {
             ui.add(
                 egui::Image::new(&texture)
-                    .fit_to_original_size(1.0 / ctx.zoom_factor())
+                    .shrink_to_fit()
                     .corner_radius(10.0),
             );
         } else {
@@ -154,7 +155,7 @@ impl BackgroundRect {
 
         let screenshot_delay_ms = settings.screenshot_delay_ms;
         let ctx = ctx.clone();
-        tokio::spawn(async move {
+        TASK_TRACKER.spawn(async move {
             sleep(Duration::from_millis(screenshot_delay_ms)).await;
 
             let image = screenshot_parameter.get_screenshot().unwrap();
@@ -190,8 +191,13 @@ impl BackgroundRect {
                 ui.set_width(frame_rect.width());
                 ui.set_height(frame_rect.height());
 
-                ui.painter()
-                    .rect(rect, 0.0, Color32::TRANSPARENT, (1.0, Color32::RED), StrokeKind::Middle);
+                ui.painter().rect(
+                    rect,
+                    0.0,
+                    Color32::TRANSPARENT,
+                    (1.0, Color32::RED),
+                    StrokeKind::Middle,
+                );
             })
     }
 }

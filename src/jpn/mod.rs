@@ -1,6 +1,7 @@
 use crate::jpn::kanji::{get_kanji_data, get_meanings, KanjiData};
 use itertools::Itertools;
 use jmdict::{Entry, GlossLanguage};
+use crate::ui::shutdown::TASK_TRACKER;
 
 pub mod dict;
 pub mod kanji;
@@ -109,7 +110,7 @@ pub async fn get_jpn_data(input: &str) -> Vec<Vec<JpnData>> {
     let window_input: Vec<_> = lines
         .into_iter()
         .map(|x| {
-            tokio::task::spawn(async move {
+            TASK_TRACKER.spawn(async move {
                 dict::async_extract_words(&x)
                     .await
                     .into_iter()
@@ -119,7 +120,7 @@ pub async fn get_jpn_data(input: &str) -> Vec<Vec<JpnData>> {
         })
         .collect();
 
-    let results: Vec<Vec<JpnData>> = futures::future::try_join_all(window_input).await.unwrap();
+    let results: Vec<Vec<JpnData>> = futures::future::try_join_all(window_input).await.unwrap_or_default();
 
     results
 }

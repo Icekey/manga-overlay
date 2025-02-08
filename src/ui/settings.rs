@@ -70,7 +70,7 @@ impl Default for AppSettings {
 
 impl AppSettings {
     pub(crate) fn show(&mut self, ctx: &egui::Context) {
-        let window = egui::Window::new("Settings");
+        let window = egui::Window::new("Settings").resizable(false);
         window.show(ctx, |ui| {
             self.show_window_settings(ui);
 

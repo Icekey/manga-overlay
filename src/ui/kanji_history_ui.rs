@@ -2,10 +2,11 @@ use std::time::Duration;
 
 use egui::{CentralPanel, Context, TopBottomPanel};
 use egui_extras::{Column, TableBuilder};
-use tokio::{spawn, time::sleep};
+use tokio::time::sleep;
 
 use crate::ui::event::Event::UpdateHistoryData;
 use crate::ui::event::EventHandler;
+use crate::ui::shutdown::TASK_TRACKER;
 use crate::{action, database::HistoryData};
 
 #[derive(serde::Deserialize, serde::Serialize, Default)]
@@ -15,7 +16,7 @@ pub struct HistoryDataUi {
 }
 impl HistoryDataUi {
     pub fn init_updater(&self, ctx: Context) {
-        spawn(async move {
+        TASK_TRACKER.spawn(async move {
             loop {
                 let history_data = action::load_history().await;
 
@@ -65,7 +66,7 @@ impl HistoryDataUi {
                             } else {
                                 if ui.button("Translate").clicked() {
                                     let ocr = value.ocr.clone();
-                                    tokio::spawn(async move {
+                                    TASK_TRACKER.spawn(async move {
                                         let _ = action::get_translation(&ocr).await;
                                     });
                                 }
