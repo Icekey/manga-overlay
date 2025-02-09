@@ -63,13 +63,11 @@ impl HistoryDataUi {
                         row.col(|ui| {
                             if let Some(translation) = &value.translation {
                                 ui.label(translation);
-                            } else {
-                                if ui.button("Translate").clicked() {
-                                    let ocr = value.ocr.clone();
-                                    TASK_TRACKER.spawn(async move {
-                                        let _ = action::get_translation(&ocr).await;
-                                    });
-                                }
+                            } else if ui.button("Translate").clicked() {
+                                let ocr = value.ocr.clone();
+                                TASK_TRACKER.spawn(async move {
+                                    let _ = action::get_translation(&ocr).await;
+                                });
                             }
                         });
                     }

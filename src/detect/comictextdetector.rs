@@ -49,7 +49,7 @@ pub fn load_model() -> Result<Session> {
         .with_intra_threads(4)?;
 
     let cuda = CUDAExecutionProvider::default();
-    if cuda.is_available()? == true {
+    if cuda.is_available()? {
         info!("CUDA is available");
     } else {
         warn!("CUDA is not available");
@@ -65,7 +65,7 @@ pub fn load_model() -> Result<Session> {
     let detector_model = include_bytes!("../../resources/comictextdetector_blk.pt.onnx");
 
     let session = builder.commit_from_memory(detector_model)?;
-    return Ok(session);
+    Ok(session)
 }
 
 pub fn detect_boxes(model: &Session, original_img: &DynamicImage) -> Result<Vec<Boxes>> {
@@ -163,7 +163,7 @@ impl Boxes {
             return false;
         }
 
-        return true;
+        true
 
         // Implement the logic to check if two boxes overlap
     }
@@ -217,21 +217,18 @@ pub fn combine_overlapping_rects(boxes: Vec<Boxes>) -> Vec<Boxes> {
 
 pub fn run_model(model: &Session, threshold: f32, img: &mut DynamicImage) -> Result<Vec<Boxes>> {
     info!("Run model");
-    let mut boxes = detect_boxes(&model, &img)?;
+    let mut boxes = detect_boxes(model, img)?;
 
-    boxes = boxes
-        .into_iter()
-        .filter(|x| x.confidence > threshold)
-        .collect();
+    boxes.retain(|x| x.confidence > threshold);
 
     Ok(boxes)
 }
 
-pub fn draw_rects(img: &mut DynamicImage, boxes: &Vec<Boxes>) {
+pub fn draw_rects(img: &mut DynamicImage, boxes: &[Boxes]) {
     let red = Rgba([255, 0, 0, 255]);
 
     boxes.iter().for_each(|row| {
-        let rect = row.get_rect(&img);
+        let rect = row.get_rect(img);
         draw_hollow_rect_mut(img, rect, red);
     });
 }

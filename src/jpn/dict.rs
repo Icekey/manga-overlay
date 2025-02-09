@@ -1,13 +1,13 @@
+use crate::ui::shutdown::TASK_TRACKER;
 use jmdict::{Entry, KanjiElement, ReadingElement};
 use multimap::MultiMap;
 use std::sync::LazyLock;
-use crate::ui::shutdown::TASK_TRACKER;
 
 const WINDOW_SIZE: usize = 50;
 const LARGEST_WORD_SIZE: usize = 15;
 const STEP_SIZE: usize = WINDOW_SIZE - LARGEST_WORD_SIZE;
 
-static JMDICT_MAP: LazyLock<MultiMap<char, Entry>> = LazyLock::new(|| create_jmdict_map());
+static JMDICT_MAP: LazyLock<MultiMap<char, Entry>> = LazyLock::new(create_jmdict_map);
 
 fn create_jmdict_map() -> MultiMap<char, Entry> {
     let x: Vec<(&'static str, Entry)> = jmdict::entries()

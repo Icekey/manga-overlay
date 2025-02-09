@@ -39,7 +39,7 @@ static EVENT_LIST_ID: LazyLock<Id> = LazyLock::new(|| Id::new("EVENT_LIST"));
 impl EventHandler for Context {
     fn emit(&self, value: Event) {
         self.data_mut(|x| {
-            x.get_temp_mut_or_insert_with(*EVENT_LIST_ID, || vec![])
+            x.get_temp_mut_or_insert_with(*EVENT_LIST_ID, Vec::new)
                 .push(value);
         });
     }
@@ -54,19 +54,19 @@ impl EventHandler for Context {
                 let background_rect = &mut state.background_rect;
                 background_rect.screenshot_result = result;
                 let settings = &state.settings;
-                if background_rect.start_ocr_at.is_none() & &settings.auto_restart_ocr {
+                if background_rect.start_ocr_at.is_none() && settings.auto_restart_ocr {
                     background_rect.start_ocr_at = Some(Instant::now());
                 }
                 background_rect.hide_ocr_rects = false;
 
                 background_rect.capture_image_handle = create_texture(
-                    &self,
+                    self,
                     background_rect.screenshot_result.capture_image.as_ref(),
                     "capture_image_texture",
                 );
 
                 background_rect.debug_image_handle = create_texture(
-                    &self,
+                    self,
                     background_rect.screenshot_result.debug_image.as_ref(),
                     "debug_image_texture",
                 );
@@ -82,7 +82,7 @@ impl EventHandler for Context {
                 if state.kanji_statistic.selected_kanji_index.is_none() {
                     state
                         .kanji_statistic
-                        .update_selected_kanji_statistic(0, &self);
+                        .update_selected_kanji_statistic(0, self);
                 }
             }
             Event::UpdateSelectedJpnData(data) => {
@@ -102,7 +102,7 @@ fn create_texture(
             name,
             ColorImage::from_rgba_unmultiplied(
                 [image.width() as usize, image.height() as usize],
-                &*image.clone().as_bytes(),
+                image.clone().as_bytes(),
             ),
             TextureOptions::default(),
         )

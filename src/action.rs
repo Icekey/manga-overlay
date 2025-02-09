@@ -98,19 +98,19 @@ pub async fn run_ocr(
 
 fn run_ocr_on_cutout_images(
     capture_image: &DynamicImage,
-    backends: &Vec<OcrBackend>,
+    backends: &[OcrBackend],
     rects: Vec<Rect>,
 ) -> Vec<(String, Rect)> {
     let cutout_images: Vec<DynamicImage> = rects
         .iter()
-        .map(|x| get_cutout_image(&capture_image, &x))
+        .map(|x| get_cutout_image(capture_image, x))
         .filter(|x| x.width() != 0 && x.height() != 0)
         .collect();
 
-    OcrBackend::run_backends(&cutout_images, &backends)
+    OcrBackend::run_backends(&cutout_images, backends)
         .unwrap_or_else(|e| vec![e.to_string(); rects.len()])
         .into_iter()
-        .zip(rects.into_iter())
+        .zip(rects)
         .collect()
 }
 
@@ -219,10 +219,10 @@ pub async fn get_translation(input: &str) -> String {
 }
 
 pub async fn load_history() -> Vec<HistoryData> {
-    return database::load_full_history().unwrap_or_else(|err| {
+    database::load_full_history().unwrap_or_else(|err| {
         log::error!("Failed to load history: {err}");
         vec![]
-    });
+    })
 }
 
 pub async fn increment_kanji_statistic(kanji: String) -> KanjiStatistic {
@@ -230,10 +230,10 @@ pub async fn increment_kanji_statistic(kanji: String) -> KanjiStatistic {
 }
 
 pub(crate) async fn load_statistic() -> Vec<KanjiStatistic> {
-    return database::load_statistic().unwrap_or_else(|err| {
+    database::load_statistic().unwrap_or_else(|err| {
         log::error!("Failed to load statistic: {err}");
         vec![]
-    });
+    })
 }
 
 pub async fn get_kanji_jpn_data(kanji: &str) -> Option<JpnData> {

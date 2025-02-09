@@ -1,7 +1,7 @@
 use crate::jpn::kanji::{get_kanji_data, get_meanings, KanjiData};
+use crate::ui::shutdown::TASK_TRACKER;
 use itertools::Itertools;
 use jmdict::{Entry, GlossLanguage};
-use crate::ui::shutdown::TASK_TRACKER;
 
 pub mod dict;
 pub mod kanji;
@@ -47,7 +47,7 @@ impl JpnData {
             .filter(|x| {
                 x.kanji_data
                     .as_ref()
-                    .map(|x| x.meanings.len() > 0)
+                    .map(|x| !x.meanings.is_empty())
                     .unwrap_or(false)
             })
             .map(|x| {
@@ -69,7 +69,7 @@ impl JpnData {
             })
             .for_each(|x| info.extend(x.iter().cloned()));
 
-        info = info.into_iter().filter(|x| !x.is_empty()).collect();
+        info.retain(|x| !x.is_empty());
 
         info
     }

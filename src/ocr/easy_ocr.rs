@@ -26,7 +26,7 @@ fn run_easy_ocr_command(image_path: &str, lang: &str) -> Result<String> {
     dbg!(&command);
     let output = Command::new("cmd").args(["/C", &command]).output()?;
     let result = String::from_utf8(output.stdout)?;
-    return Ok(result);
+    Ok(result)
 }
 
 pub fn parse_easy_ocr_output(output: &str) -> String {

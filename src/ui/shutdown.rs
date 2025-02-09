@@ -3,7 +3,7 @@ use std::sync::LazyLock;
 use tokio::spawn;
 use tokio_util::task::TaskTracker;
 
-pub static TASK_TRACKER: LazyLock<TaskTracker> = LazyLock::new(|| TaskTracker::new());
+pub static TASK_TRACKER: LazyLock<TaskTracker> = LazyLock::new(TaskTracker::new);
 
 pub fn shutdown_tasks() {
     let tracker = TASK_TRACKER.clone();

@@ -26,13 +26,13 @@ async fn main() -> eframe::Result {
     )
 }
 
-const LOG_CONFIG_DIR: &'static str = "config";
-const LOG_CONFIG: &'static str = "config/log4rs.yaml";
+const LOG_CONFIG_DIR: &str = "config";
+const LOG_CONFIG: &str = "config/log4rs.yaml";
 
 fn init_logger() {
     fs::create_dir_all(LOG_CONFIG_DIR).expect("Config directory creation failed");
     if !Path::new(&LOG_CONFIG).exists() {
-        fs::write(&LOG_CONFIG, include_str!("../config/log4rs.yaml"))
+        fs::write(LOG_CONFIG, include_str!("../config/log4rs.yaml"))
             .expect("Config file creation failed");
     }
 

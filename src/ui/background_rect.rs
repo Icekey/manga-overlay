@@ -38,12 +38,12 @@ pub fn start_ocr_id() -> Id {
 }
 
 fn is_start_ocr(ctx: &egui::Context) -> bool {
-    return ctx.data_mut(|map| {
+    ctx.data_mut(|map| {
         let id = start_ocr_id();
         let value = map.get_temp(id).unwrap_or(false);
         map.insert_temp(id, false);
         value
-    });
+    })
 }
 
 impl BackgroundRect {
@@ -55,7 +55,7 @@ impl BackgroundRect {
             self.start_ocr_at = Some(Instant::now());
         }
 
-        if is_start_ocr(&ctx) || self.should_auto_restart(settings) {
+        if is_start_ocr(ctx) || self.should_auto_restart(settings) {
             self.start_ocr_at = None;
             self.hide_ocr_rects = true;
             self.start_ocr(ctx, settings);
@@ -119,7 +119,7 @@ impl BackgroundRect {
             }
         }
 
-        return false;
+        false
     }
 
     pub fn get_unscaled_rect(&self) -> Rect {
@@ -177,10 +177,8 @@ impl BackgroundRect {
 
         let rect = scale_rect(rect, 1.0 / ctx.zoom_factor());
 
-        if !self.hide_ocr_rects {
-            if self.screenshot_result.show(ctx, &rect) {
-                self.last_ocr_rect_hover_at = Some(Instant::now());
-            }
+        if !self.hide_ocr_rects && self.screenshot_result.show(ctx, &rect) {
+            self.last_ocr_rect_hover_at = Some(Instant::now());
         }
 
         egui::Area::new(Id::new("Background"))

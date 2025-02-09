@@ -8,7 +8,7 @@ use anyhow::{Context, Result};
 use itertools::Itertools;
 use log::{debug, info};
 use rusty_tesseract::Image;
-pub fn run_manga_ocr(images: &Vec<Image>, manga_ocr: &mut MangaOcrInstance) -> Result<Vec<String>> {
+pub fn run_manga_ocr(images: &[Image], manga_ocr: &mut MangaOcrInstance) -> Result<Vec<String>> {
     let paths = images
         .iter()
         .filter_map(|x| x.get_image_path().ok())

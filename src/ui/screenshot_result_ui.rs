@@ -31,7 +31,7 @@ impl ScreenshotResult {
                     let contains = rect.contains(frame_mouse_position);
 
                     if contains || rect_is_clicked {
-                        show_ocr_info_window(ctx, &rect, &result, i);
+                        show_ocr_info_window(ctx, &rect, result, i);
                     }
 
                     let color = if contains {
@@ -68,7 +68,7 @@ impl ScreenshotResult {
         }
 
         update_scroll_y_offset(ctx, area_hovered);
-        return area_hovered;
+        area_hovered
     }
 
     fn update_translation(&mut self, ctx: &egui::Context) {

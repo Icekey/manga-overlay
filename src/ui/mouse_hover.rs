@@ -43,8 +43,8 @@ pub fn get_frame_mouse_position(ctx: &Context) -> Pos2 {
     let zoom_factor = ctx.zoom_factor();
     let mouse_pos2 = Pos2::new(mouse_pos2.x / zoom_factor, mouse_pos2.y / zoom_factor);
     let Vec2 { x, y } = mouse_pos2 - frame_rect.min;
-    let mouse_pos2 = Pos2::new(x, y);
-    mouse_pos2
+
+    Pos2::new(x, y)
 }
 
 pub fn get_frame_rect(ctx: &Context) -> Rect {

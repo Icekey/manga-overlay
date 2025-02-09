@@ -21,7 +21,7 @@ pub fn create_table(create_table_query: &str) -> Result<Connection> {
     conn.execute(create_table_query, [])
         .context("could not create table")?;
 
-    return Ok(conn);
+    Ok(conn)
 }
 
 #[cfg(test)]
@@ -38,10 +38,8 @@ fn get_output_path(filename: &str) -> PathBuf {
         .expect("unable to get current_dir")
         .join("output");
 
-    fs::create_dir_all(&path_buf).expect(&format!(
-        "Unable to create output directory: {:?}",
-        &path_buf
-    ));
+    fs::create_dir_all(&path_buf).unwrap_or_else(|_| panic!("Unable to create output directory: {:?}",
+                                                            &path_buf));
 
     path_buf.join(filename)
 }

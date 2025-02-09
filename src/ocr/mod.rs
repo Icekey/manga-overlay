@@ -51,10 +51,7 @@ pub struct EasyOcrParameter {
 }
 
 impl OcrBackend {
-    pub fn run_backends(
-        images: &Vec<DynamicImage>,
-        backends: &Vec<OcrBackend>,
-    ) -> Result<Vec<String>> {
+    pub fn run_backends(images: &[DynamicImage], backends: &[OcrBackend]) -> Result<Vec<String>> {
         let image: Vec<Image> = images
             .iter()
             .filter_map(|x| Image::from_dynamic_image(x).ok())
@@ -62,7 +59,7 @@ impl OcrBackend {
         let backend_count: usize = backends.len();
 
         let backend_outputs: Vec<Vec<String>> = backends
-            .into_iter()
+            .iter()
             .map(|e| (e.to_string(), e.run_ocr(&image)))
             .map(|e| concat_backend_output(e.0, e.1, backend_count))
             .collect();
@@ -83,21 +80,21 @@ impl OcrBackend {
         Ok(output)
     }
 
-    pub fn run_ocr(&self, images: &Vec<Image>) -> Result<Vec<String>> {
+    pub fn run_ocr(&self, images: &[Image]) -> Result<Vec<String>> {
         return match self {
             OcrBackend::Tesseract(x) => images
                 .iter()
-                .map(|image| tesseract::run_ocr_tesseract(&image, x))
+                .map(|image| tesseract::run_ocr_tesseract(image, x))
                 .collect(),
             OcrBackend::EasyOcr(x) => images
                 .iter()
-                .map(|image| easy_ocr::run_ocr_easy_ocr(&image, x))
+                .map(|image| easy_ocr::run_ocr_easy_ocr(image, x))
                 .collect(),
             OcrBackend::MangaOcr => Self::run_manga_ocr(images),
         };
     }
 
-    fn run_manga_ocr(images: &Vec<Image>) -> Result<Vec<String>> {
+    fn run_manga_ocr(images: &[Image]) -> Result<Vec<String>> {
         if let Some(x) = OCR_STATE.clone().manga_ocr.lock().unwrap().as_mut() {
             manga_ocr::run_manga_ocr(images, x)
         } else {
