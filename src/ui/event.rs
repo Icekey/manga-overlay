@@ -12,7 +12,6 @@ use tokio::time::Instant;
 #[derive(Debug, Clone)]
 pub enum Event {
     UpdateScreenshotResult(ScreenshotResult),
-    ShowOcrRects,
     UpdateHistoryData(Vec<HistoryData>),
     UpdateKanjiStatistic(Vec<KanjiStatistic>),
     UpdateSelectedJpnData(JpnData),
@@ -57,7 +56,6 @@ impl EventHandler for Context {
                 if background_rect.start_ocr_at.is_none() && settings.auto_restart_ocr {
                     background_rect.start_ocr_at = Some(Instant::now());
                 }
-                background_rect.hide_ocr_rects = false;
 
                 background_rect.capture_image_handle = create_texture(
                     self,
@@ -70,9 +68,6 @@ impl EventHandler for Context {
                     background_rect.screenshot_result.debug_image.as_ref(),
                     "debug_image_texture",
                 );
-            }
-            Event::ShowOcrRects => {
-                state.background_rect.hide_ocr_rects = true;
             }
             Event::UpdateHistoryData(data) => {
                 state.history.history_data = data;

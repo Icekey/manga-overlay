@@ -84,9 +84,8 @@ pub async fn run_ocr(
     }
 
     //Draw Boxes
-    let mut capture_image = capture_image.clone();
+    let capture_image = capture_image.clone();
     let mut debug_image = capture_image.clone();
-    detect::comictextdetector::draw_rects(&mut capture_image, &boxes);
     detect::comictextdetector::draw_rects(&mut debug_image, &all_boxes);
 
     Ok(ScreenshotResult {

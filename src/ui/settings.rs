@@ -17,7 +17,6 @@ pub struct AppSettings {
 
     pub auto_restart_ocr: bool,
     pub auto_restart_delay_ms: u64,
-    pub screenshot_delay_ms: u64,
     pub hover_delay_ms: u64,
 
     //OCR Settings
@@ -44,20 +43,19 @@ pub struct AppSettings {
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
-            clear_color: Default::default(),
-            mouse_passthrough: Default::default(),
-            decorations: Default::default(),
-            is_tesseract: Default::default(),
-            tesseract_parameter: Default::default(),
-            is_easy_ocr: Default::default(),
-            easy_ocr_parameter: Default::default(),
-            is_manga_ocr: Default::default(),
+            clear_color: Color32::TRANSPARENT,
+            mouse_passthrough: false,
+            decorations: false,
+            is_tesseract: false,
+            tesseract_parameter: TesseractParameter::default(),
+            is_easy_ocr: false,
+            easy_ocr_parameter: EasyOcrParameter::default(),
+            is_manga_ocr: true,
             langs: get_tesseract_langs().unwrap_or_default(),
             detect_boxes: true,
-            zoom_factor: 2.0,
-            auto_restart_ocr: false,
+            zoom_factor: 1.5,
+            auto_restart_ocr: true,
             auto_restart_delay_ms: 1000,
-            screenshot_delay_ms: 200,
             hover_delay_ms: 1000,
             show_statistics: false,
             show_history: false,
@@ -121,6 +119,10 @@ impl AppSettings {
             ui.horizontal(|ui| {
                 ui.selectable_value(&mut self.detect_boxes, false, "Full Capture");
                 ui.selectable_value(&mut self.detect_boxes, true, "Detect Boxes");
+
+                if !self.detect_boxes {
+                    ui.disable()
+                }
                 ui.add(egui::Slider::new(&mut self.threshold, 0.0..=1.0).text("Box Threshold"));
             });
 
@@ -138,17 +140,15 @@ impl AppSettings {
             });
 
             ui.horizontal(|ui| {
-                ui.label("Screenshot Delay(ms):");
-
-                ui.add(egui::Slider::new(&mut self.screenshot_delay_ms, 0..=1000));
-            });
-
-            ui.horizontal(|ui| {
                 ui.label("Hover Delay(ms):");
 
                 ui.add(egui::Slider::new(&mut self.hover_delay_ms, 0..=5000));
             });
 
+            ui.separator();
+
+            //MangaOcr
+            self.show_manga_ocr_config(ui);
             ui.separator();
 
             //Tesseract
@@ -157,10 +157,6 @@ impl AppSettings {
 
             //EasyOcr
             self.show_easy_ocr_config(ui);
-            ui.separator();
-
-            //MangaOcr
-            self.show_manga_ocr_config(ui);
         });
     }
 

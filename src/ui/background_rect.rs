@@ -4,14 +4,14 @@ use crate::{
     ocr::OcrBackend,
 };
 
-use crate::ui::event::Event::{ShowOcrRects, UpdateScreenshotResult};
+use crate::ui::event::Event::UpdateScreenshotResult;
 use crate::ui::event::EventHandler;
 use crate::ui::shutdown::TASK_TRACKER;
 use eframe::epaint::StrokeKind;
-use egui::{Color32, Id, Pos2, Rect, Sense, TextureHandle, Vec2};
+use egui::{Color32, Context, Id, Pos2, Rect, Sense, TextureHandle, Vec2};
 use log::info;
 use std::time::Duration;
-use tokio::time::{sleep, Instant};
+use tokio::time::Instant;
 
 #[derive(serde::Deserialize, serde::Serialize, Default)]
 #[serde(default)]
@@ -20,6 +20,7 @@ pub struct BackgroundRect {
     end_pos: Pos2,
 
     pub screenshot_result: ScreenshotResult,
+    #[serde(skip)]
     pub hide_ocr_rects: bool,
 
     #[serde(skip)]
@@ -48,17 +49,13 @@ fn is_start_ocr(ctx: &egui::Context) -> bool {
 
 impl BackgroundRect {
     pub fn show(&mut self, ctx: &egui::Context, settings: &AppSettings) {
+        self.check_start_ocr(ctx, settings);
+
         let bg_response = self.draw_background(ctx);
 
         if !settings.mouse_passthrough && self.update_drag(&bg_response.response, ctx.zoom_factor())
         {
             self.start_ocr_at = Some(Instant::now());
-        }
-
-        if is_start_ocr(ctx) || self.should_auto_restart(settings) {
-            self.start_ocr_at = None;
-            self.hide_ocr_rects = true;
-            self.start_ocr(ctx, settings);
         }
 
         if bg_response.response.drag_started() {
@@ -73,11 +70,24 @@ impl BackgroundRect {
         }
     }
 
+    fn check_start_ocr(&mut self, ctx: &Context, settings: &AppSettings) {
+        if self.hide_ocr_rects {
+            //Rect are hidden => screenshot can be taken
+            self.start_ocr(ctx, settings);
+            self.hide_ocr_rects = false;
+        }
+
+        if is_start_ocr(ctx) || self.should_auto_restart(settings) {
+            self.start_ocr_at = None;
+            self.hide_ocr_rects = true;
+        }
+    }
+
     fn should_auto_restart(&mut self, settings: &AppSettings) -> bool {
         if let Some(instant) = self.start_ocr_at {
-            let not_hovering = self
-                .last_ocr_rect_hover_at
-                .map_or(true, |x| x.elapsed() >= Duration::from_millis(settings.hover_delay_ms));
+            let not_hovering = self.last_ocr_rect_hover_at.map_or(true, |x| {
+                x.elapsed() >= Duration::from_millis(settings.hover_delay_ms)
+            });
 
             let elapsed = instant.elapsed();
             return elapsed >= Duration::from_millis(settings.auto_restart_delay_ms)
@@ -152,21 +162,13 @@ impl BackgroundRect {
             threshold: settings.threshold,
         };
 
-        let screenshot_delay_ms = settings.screenshot_delay_ms;
+        let image = screenshot_parameter.get_screenshot().unwrap();
+
         let ctx = ctx.clone();
         TASK_TRACKER.spawn(async move {
-            sleep(Duration::from_millis(screenshot_delay_ms)).await;
-
-            info!("Start screenshot");
-            let image = screenshot_parameter.get_screenshot().unwrap();
-            ctx.emit(ShowOcrRects);
-            info!("Stop screenshot");
-
             info!("Start ocr");
             let screenshot = run_ocr(screenshot_parameter, image).await.unwrap();
             info!("Start ocr done");
-
-            
 
             ctx.emit(UpdateScreenshotResult(screenshot));
         });
