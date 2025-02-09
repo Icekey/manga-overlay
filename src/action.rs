@@ -50,7 +50,7 @@ pub async fn run_ocr(
     //Run OCR on Boxes
     let mut rects: Vec<Rect> = boxes.iter().map(|x| x.get_rect(&capture_image)).collect();
 
-    if rects.is_empty() || parameter.full_capture_ocr {
+    if parameter.full_capture_ocr {
         //Add full image rect
         rects.insert(
             0,
