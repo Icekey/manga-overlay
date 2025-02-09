@@ -1,33 +1,12 @@
-use std::sync::{Arc, LazyLock, Mutex};
-
-use anyhow::{bail, Result};
+use anyhow::Result;
 use image::DynamicImage;
 use rusty_tesseract::Image;
 use serde::{Deserialize, Serialize};
 use strum::{EnumIter, EnumString};
 
-use crate::ocr::manga_ocr::MangaOcrInstance;
-
 mod easy_ocr;
-mod manga_ocr;
+pub mod manga_ocr;
 mod tesseract;
-
-pub static OCR_STATE: LazyLock<OcrState> = LazyLock::new(OcrState::init);
-
-#[derive(Clone)]
-pub struct OcrState {
-    pub manga_ocr: Arc<Mutex<Option<MangaOcrInstance>>>,
-}
-
-impl OcrState {
-    pub fn init() -> Self {
-        let data = MangaOcrInstance::init().ok();
-        let data = Mutex::new(data);
-        let manga_ocr = Arc::new(data);
-
-        Self { manga_ocr }
-    }
-}
 
 #[derive(Debug, Clone, PartialEq, strum::Display, EnumString, EnumIter, Serialize, Deserialize)]
 pub enum OcrBackend {
@@ -90,16 +69,8 @@ impl OcrBackend {
                 .iter()
                 .map(|image| easy_ocr::run_ocr_easy_ocr(image, x))
                 .collect(),
-            OcrBackend::MangaOcr => Self::run_manga_ocr(images),
+            OcrBackend::MangaOcr => Ok(manga_ocr::run_manga_ocr(images)),
         };
-    }
-
-    fn run_manga_ocr(images: &[Image]) -> Result<Vec<String>> {
-        if let Some(x) = OCR_STATE.clone().manga_ocr.lock().unwrap().as_mut() {
-            manga_ocr::run_manga_ocr(images, x)
-        } else {
-            bail!("No MangaOcrInstance")
-        }
     }
 }
 

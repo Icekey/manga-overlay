@@ -2,7 +2,8 @@ use super::background_rect::BackgroundRect;
 use super::kanji_history_ui::{init_history_updater, HistoryDataUi};
 use super::kanji_statistic_ui::{init_kanji_statistic_updater, KanjiStatisticUi};
 use super::settings::AppSettings;
-use crate::ocr::OCR_STATE;
+use crate::detect::comictextdetector::DETECT_STATE;
+use crate::ocr::manga_ocr::MANGA_OCR;
 use crate::ui::event::EventHandler;
 use crate::ui::shutdown::{shutdown_tasks, TASK_TRACKER};
 use egui::Context;
@@ -38,7 +39,10 @@ impl OcrApp {
         init_kanji_statistic_updater(cc.egui_ctx.clone());
 
         TASK_TRACKER.spawn(async {
-            LazyLock::force(&OCR_STATE);
+            LazyLock::force(&MANGA_OCR);
+        });
+        TASK_TRACKER.spawn(async {
+            LazyLock::force(&DETECT_STATE);
         });
 
         ocr_app

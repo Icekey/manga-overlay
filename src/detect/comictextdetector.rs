@@ -216,11 +216,11 @@ pub fn combine_overlapping_rects(boxes: Vec<Boxes>) -> Vec<Boxes> {
 }
 
 pub fn run_model(model: &Session, threshold: f32, img: &mut DynamicImage) -> Result<Vec<Boxes>> {
-    info!("Run model");
+    info!("detect_boxes...");
     let mut boxes = detect_boxes(model, img)?;
 
     boxes.retain(|x| x.confidence > threshold);
-
+    info!("detect_boxes done with {}", boxes.len());
     Ok(boxes)
 }
 

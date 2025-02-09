@@ -157,14 +157,16 @@ impl BackgroundRect {
         TASK_TRACKER.spawn(async move {
             sleep(Duration::from_millis(screenshot_delay_ms)).await;
 
-            let image = screenshot_parameter.get_screenshot().unwrap();
-
-            ctx.emit(ShowOcrRects);
-
             info!("Start screenshot");
-            let screenshot = run_ocr(screenshot_parameter, image).await.unwrap();
-
+            let image = screenshot_parameter.get_screenshot().unwrap();
+            ctx.emit(ShowOcrRects);
             info!("Stop screenshot");
+
+            info!("Start ocr");
+            let screenshot = run_ocr(screenshot_parameter, image).await.unwrap();
+            info!("Start ocr done");
+
+            
 
             ctx.emit(UpdateScreenshotResult(screenshot));
         });
