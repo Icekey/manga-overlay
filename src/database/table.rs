@@ -28,7 +28,7 @@ pub fn create_table(create_table_query: &str) -> Result<Connection> {
 pub fn drop_table(table_name: &str) -> Result<()> {
     let conn = create_database()?;
 
-    conn.execute(&format!("DROP TABLE IF EXISTS {}", table_name), [])?;
+    conn.execute(&format!("DROP TABLE IF EXISTS {table_name}"), [])?;
 
     Ok(())
 }

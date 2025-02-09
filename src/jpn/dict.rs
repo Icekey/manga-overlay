@@ -56,7 +56,7 @@ pub async fn async_extract_words(input: &str) -> Vec<(String, Vec<Entry>)> {
     let results: Vec<Vec<(String, Vec<Entry>)>> = futures::future::try_join_all(window_input)
         .await
         .unwrap_or_else(|e| {
-            println!("async_extract_words: {}", e);
+            println!("async_extract_words: {e}");
             vec![]
         });
 
@@ -124,9 +124,7 @@ fn extract_words(input: &str) -> Vec<(String, Vec<Entry>)> {
 }
 
 fn extract_dict_entries(input: &str) -> (String, Vec<Entry>) {
-    if input.is_empty() {
-        panic!("input '{}'", input)
-    }
+    assert!(!input.is_empty(), "input '{input}'");
 
     let mut current_prefix: String = input.chars().take(1).collect();
     let initial_entries = JMDICT_MAP.get_vec(&current_prefix.chars().next().unwrap());
@@ -243,7 +241,7 @@ mod tests {
             let _ = async_extract_words(&input).await;
             let end = SystemTime::now();
             let duration = end.duration_since(start).unwrap();
-            println!("function took {} {:?}", label, duration);
+            println!("function took {label} {duration:?}");
 
             println!("----");
         }

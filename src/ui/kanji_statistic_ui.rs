@@ -18,18 +18,18 @@ pub struct KanjiStatisticUi {
     pub selected_jpn_data: JpnData,
 }
 
+pub fn init_kanji_statistic_updater(ctx: Context) {
+    TASK_TRACKER.spawn(async move {
+        loop {
+            let kanji_statistic = action::load_statistic();
+
+            ctx.emit(UpdateKanjiStatistic(kanji_statistic));
+            sleep(Duration::from_secs(1)).await;
+        }
+    });
+}
+
 impl KanjiStatisticUi {
-    pub fn init_updater(&self, ctx: Context) {
-        TASK_TRACKER.spawn(async move {
-            loop {
-                let kanji_statistic = action::load_statistic().await;
-
-                ctx.emit(UpdateKanjiStatistic(kanji_statistic));
-                sleep(Duration::from_secs(1)).await;
-            }
-        });
-    }
-
     pub fn show(&mut self, ctx: &egui::Context) {
         egui::Window::new("Kanji Statistic").show(ctx, |ui| {
             SidePanel::left("Kanji Statistic Side Panel").show_inside(ui, |ui| {

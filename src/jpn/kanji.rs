@@ -34,17 +34,8 @@ pub struct KanjiMap {
     map: HashMap<char, KanjiData>,
 }
 
-pub fn get_kanji_data(word: &char) -> Option<KanjiData> {
-    KANJI_MAP.get(word).cloned()
-}
-
-pub fn get_meanings(word: &char) -> Vec<String> {
-    let kanji_data = KANJI_MAP.get(word);
-
-    kanji_data
-        .into_iter()
-        .flat_map(|e| e.meanings.clone())
-        .collect()
+pub fn get_kanji_data(word: char) -> Option<KanjiData> {
+    KANJI_MAP.get(&word).cloned()
 }
 
 fn get_map_from_json(json: &str) -> HashMap<char, KanjiData> {

@@ -1,20 +1,28 @@
 #![warn(clippy::all, rust_2018_idioms)]
+#![allow(
+    clippy::must_use_candidate,
+    clippy::module_name_repetitions,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    clippy::cast_precision_loss,
+    clippy::float_cmp
+)]
 mod ui;
 
 use action::ScreenshotParameter;
 pub use ui::app::OcrApp;
 
-use anyhow::*;
+use anyhow::{Ok, Result};
 use image::{DynamicImage, RgbaImage};
 use rusty_tesseract::Args;
 use screenshots::Screen;
 
-pub mod action;
-pub mod database;
-pub mod detect;
-pub mod jpn;
-pub mod ocr;
-pub mod translation;
+pub(crate) mod action;
+pub(crate) mod database;
+pub(crate) mod detect;
+pub(crate) mod jpn;
+pub(crate) mod ocr;
+pub(crate) mod translation;
 
 impl ScreenshotParameter {
     pub fn get_screenshot(&self) -> Result<DynamicImage> {

@@ -108,7 +108,6 @@ fn run_ocr_on_cutout_images(
         .collect();
 
     OcrBackend::run_backends(&cutout_images, backends)
-        .unwrap_or_else(|e| vec![e.to_string(); rects.len()])
         .into_iter()
         .zip(rects)
         .collect()
@@ -119,7 +118,7 @@ async fn get_result_data(ocr: String, rect: Rect) -> ResultData {
 
     let translation = match database::load_history_data(&ocr) {
         Ok(x) => x.translation.unwrap_or_default(),
-        Err(_) => "".to_string(),
+        Err(_) => String::new(),
     };
 
     ResultData {
@@ -177,17 +176,17 @@ impl std::fmt::Debug for ResultData {
 }
 
 impl ResultData {
-    pub fn get_jpn_data_with_info_count(&self) -> i32 {
-        self.get_jpn_data_with_info().count() as i32
+    pub fn get_jpn_data_with_info_count(&self) -> usize {
+        self.get_jpn_data_with_info().count()
     }
 
-    pub fn get_jpn_data_with_info_by_index(&self, index: i32) -> Option<&JpnData> {
+    pub fn get_jpn_data_with_info_by_index(&self, index: usize) -> Option<&JpnData> {
         let count = self.get_jpn_data_with_info_count();
         if count == 0 {
             return None;
         }
         self.get_jpn_data_with_info()
-            .nth((index.rem_euclid(count)) as usize)
+            .nth(index.rem_euclid(count))
     }
 
     fn get_jpn_data_with_info(&self) -> impl Iterator<Item = &JpnData> {
@@ -218,18 +217,18 @@ pub async fn get_translation(input: &str) -> String {
     translation
 }
 
-pub async fn load_history() -> Vec<HistoryData> {
+pub fn load_history() -> Vec<HistoryData> {
     database::load_full_history().unwrap_or_else(|err| {
         log::error!("Failed to load history: {err}");
         vec![]
     })
 }
 
-pub async fn increment_kanji_statistic(kanji: String) -> KanjiStatistic {
-    database::increment_kanji_statistic(&kanji).expect("Failed to increment kanji statistic")
+pub fn increment_kanji_statistic(kanji: &str) -> KanjiStatistic {
+    database::increment_kanji_statistic(kanji).expect("Failed to increment kanji statistic")
 }
 
-pub(crate) async fn load_statistic() -> Vec<KanjiStatistic> {
+pub(crate) fn load_statistic() -> Vec<KanjiStatistic> {
     database::load_statistic().unwrap_or_else(|err| {
         log::error!("Failed to load statistic: {err}");
         vec![]

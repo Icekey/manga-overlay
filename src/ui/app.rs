@@ -1,6 +1,6 @@
 use super::background_rect::BackgroundRect;
-use super::kanji_history_ui::HistoryDataUi;
-use super::kanji_statistic_ui::KanjiStatisticUi;
+use super::kanji_history_ui::{init_history_updater, HistoryDataUi};
+use super::kanji_statistic_ui::{init_kanji_statistic_updater, KanjiStatisticUi};
 use super::settings::AppSettings;
 use crate::ocr::OCR_STATE;
 use crate::ui::event::EventHandler;
@@ -34,8 +34,8 @@ impl OcrApp {
             Default::default()
         };
 
-        ocr_app.kanji_statistic.init_updater(cc.egui_ctx.clone());
-        ocr_app.history.init_updater(cc.egui_ctx.clone());
+        init_history_updater(cc.egui_ctx.clone());
+        init_kanji_statistic_updater(cc.egui_ctx.clone());
 
         TASK_TRACKER.spawn(async {
             LazyLock::force(&OCR_STATE);

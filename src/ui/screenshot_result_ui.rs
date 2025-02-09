@@ -53,7 +53,7 @@ impl ScreenshotResult {
                 if result.translation.is_empty() {
                     fetch_translation(&result.ocr, i, ctx);
                 } else {
-                    set_translation_visible(ctx, !is_translation_visible(ctx))
+                    set_translation_visible(ctx, !is_translation_visible(ctx));
                 }
             }
 
@@ -90,7 +90,7 @@ fn is_translation_visible(ctx: &egui::Context) -> bool {
 }
 
 fn set_translation_visible(ctx: &egui::Context, is_visible: bool) {
-    ctx.data_mut(|map| map.insert_temp::<bool>(Id::new("is_translation_visible"), is_visible))
+    ctx.data_mut(|map| map.insert_temp::<bool>(Id::new("is_translation_visible"), is_visible));
 }
 
 fn fetch_translation(ocr: &str, index: usize, ctx: &egui::Context) {
@@ -102,8 +102,8 @@ fn fetch_translation(ocr: &str, index: usize, ctx: &egui::Context) {
             x.insert_temp(
                 Id::new("translation"),
                 TranslationUpdate { index, translation },
-            )
-        })
+            );
+        });
     });
 }
 
@@ -204,7 +204,7 @@ fn update_kanji_statistic(ui: &mut egui::Ui, info: &crate::jpn::JpnData) {
             let kanji = info.get_kanji();
 
             TASK_TRACKER.spawn(async move {
-                let _ = action::increment_kanji_statistic(kanji).await;
+                let _ = action::increment_kanji_statistic(&kanji);
             });
             return;
         }

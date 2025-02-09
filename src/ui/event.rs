@@ -27,7 +27,7 @@ pub trait EventHandler {
         let events = self.get_events();
 
         for x in events {
-            self.handle_event(state, x)
+            self.handle_event(state, x);
         }
     }
 

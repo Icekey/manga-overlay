@@ -3,7 +3,7 @@ use itertools::Itertools;
 
 pub async fn translate(jpn_text: &str) -> Result<String> {
     let url = "https://translate.google.com/m?sl=ja&tl=en&hl=en";
-    let response = reqwest::get(format!("{}&q={}", url, jpn_text)).await?;
+    let response = reqwest::get(format!("{url}&q={jpn_text}")).await?;
     let body = response.text().await?;
 
     let document = scraper::Html::parse_document(&body);

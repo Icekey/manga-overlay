@@ -20,8 +20,7 @@ pub fn run_ocr_easy_ocr(image: &Image, parameter: &EasyOcrParameter) -> Result<S
 
 fn run_easy_ocr_command(image_path: &str, lang: &str) -> Result<String> {
     let command = format!(
-        "python -X utf8 -m easyocr.cli -l {} -f {} --verbose=False",
-        lang, image_path
+        "python -X utf8 -m easyocr.cli -l {lang} -f {image_path} --verbose=False"
     );
     dbg!(&command);
     let output = Command::new("cmd").args(["/C", &command]).output()?;

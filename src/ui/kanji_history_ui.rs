@@ -14,18 +14,18 @@ use crate::{action, database::HistoryData};
 pub struct HistoryDataUi {
     pub history_data: Vec<HistoryData>,
 }
+pub fn init_history_updater(ctx: Context) {
+    TASK_TRACKER.spawn(async move {
+        loop {
+            let history_data = action::load_history();
+
+            ctx.emit(UpdateHistoryData(history_data));
+            sleep(Duration::from_secs(1)).await;
+        }
+    });
+}
+
 impl HistoryDataUi {
-    pub fn init_updater(&self, ctx: Context) {
-        TASK_TRACKER.spawn(async move {
-            loop {
-                let history_data = action::load_history().await;
-
-                ctx.emit(UpdateHistoryData(history_data));
-                sleep(Duration::from_secs(1)).await;
-            }
-        });
-    }
-
     pub fn show(&mut self, ctx: &egui::Context) {
         egui::Window::new("HistoryDataUi").show(ctx, |ui| {
             TopBottomPanel::bottom("HistoryDataUi invisible bottom panel")

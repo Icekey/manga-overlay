@@ -51,7 +51,7 @@ pub struct EasyOcrParameter {
 }
 
 impl OcrBackend {
-    pub fn run_backends(images: &[DynamicImage], backends: &[OcrBackend]) -> Result<Vec<String>> {
+    pub fn run_backends(images: &[DynamicImage], backends: &[OcrBackend]) -> Vec<String> {
         let image: Vec<Image> = images
             .iter()
             .filter_map(|x| Image::from_dynamic_image(x).ok())
@@ -60,24 +60,24 @@ impl OcrBackend {
 
         let backend_outputs: Vec<Vec<String>> = backends
             .iter()
-            .map(|e| (e.to_string(), e.run_ocr(&image)))
+            .map(|e| (e, e.run_ocr(&image)))
             .map(|e| concat_backend_output(e.0, e.1, backend_count))
             .collect();
 
         let mut output: Vec<String> = vec![];
-        for i in 0..backend_outputs.len() {
+        for (i, backend_output) in backend_outputs.iter().enumerate() {
             if i == 0 {
-                output = backend_outputs.get(i).unwrap().clone();
+                output.clone_from(backend_output);
             } else {
                 output = output
                     .into_iter()
-                    .zip(backend_outputs.get(i).unwrap().iter())
+                    .zip(backend_output.iter())
                     .map(|x| [x.0, x.1.to_string()].join("\n\n").trim().to_string())
                     .collect();
             }
         }
 
-        Ok(output)
+        output
     }
 
     pub fn run_ocr(&self, images: &[Image]) -> Result<Vec<String>> {
@@ -104,7 +104,7 @@ impl OcrBackend {
 }
 
 fn concat_backend_output(
-    backend: String,
+    backend: &OcrBackend,
     output: Result<Vec<String>>,
     backend_count: usize,
 ) -> Vec<String> {
@@ -113,7 +113,7 @@ fn concat_backend_output(
         .into_iter()
         .map(|x| {
             if backend_count > 1 {
-                [backend.clone(), x].join("\n")
+                [backend.to_string(), x].join("\n")
             } else {
                 x
             }
@@ -220,7 +220,7 @@ mod tests {
         run_test(&expected).await;
     }
 
-    async fn run_test(expected: &Vec<ResultData>) {
+    async fn run_test(expected: &[ResultData]) {
         let image = image::open("input/input.jpg").expect("Failed to open image");
         let run_ocr: ScreenshotResult = run_ocr(
             ScreenshotParameter {

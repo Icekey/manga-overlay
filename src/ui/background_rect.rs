@@ -77,8 +77,7 @@ impl BackgroundRect {
         if let Some(instant) = self.start_ocr_at {
             let not_hovering = self
                 .last_ocr_rect_hover_at
-                .map(|x| x.elapsed() >= Duration::from_millis(settings.hover_delay_ms))
-                .unwrap_or(true);
+                .map_or(true, |x| x.elapsed() >= Duration::from_millis(settings.hover_delay_ms));
 
             let elapsed = instant.elapsed();
             return elapsed >= Duration::from_millis(settings.auto_restart_delay_ms)

@@ -81,9 +81,9 @@ pub fn detect_boxes(model: &Session, original_img: &DynamicImage) -> Result<Vec<
         let x = pixel.0 as _;
         let y = pixel.1 as _;
         let [r, g, b, _] = pixel.2 .0;
-        input[[0, 0, y, x]] = (r as f32) / 255.;
-        input[[0, 1, y, x]] = (g as f32) / 255.;
-        input[[0, 2, y, x]] = (b as f32) / 255.;
+        input[[0, 0, y, x]] = f32::from(r) / 255.;
+        input[[0, 1, y, x]] = f32::from(g) / 255.;
+        input[[0, 2, y, x]] = f32::from(b) / 255.;
     }
 
     // let outputs: SessionOutputs = model.run(ort::inputs!["images" => input.view()]?)?;
@@ -199,7 +199,7 @@ impl Boxes {
 pub fn combine_overlapping_rects(boxes: Vec<Boxes>) -> Vec<Boxes> {
     let mut combined_boxes: Vec<Boxes> = vec![];
 
-    for next_box in boxes.into_iter() {
+    for next_box in boxes {
         let mut overlapped = false;
         for aggregate_box in &mut combined_boxes {
             if next_box.overlaps(aggregate_box) {
@@ -227,10 +227,10 @@ pub fn run_model(model: &Session, threshold: f32, img: &mut DynamicImage) -> Res
 pub fn draw_rects(img: &mut DynamicImage, boxes: &[Boxes]) {
     let red = Rgba([255, 0, 0, 255]);
 
-    boxes.iter().for_each(|row| {
+    for row in boxes {
         let rect = row.get_rect(img);
         draw_hollow_rect_mut(img, rect, red);
-    });
+    }
 }
 
 #[cfg(test)]
@@ -252,7 +252,7 @@ mod tests {
                 let res_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
                 let output = res_dir
                     .join("output")
-                    .join(format!("output_{:.2}.jpg", conf));
+                    .join(format!("output_{conf:.2}.jpg"));
                 let input_path = res_dir.join("input").join("input.jpg");
                 let mut original_img = image::open(input_path.as_path()).unwrap();
 

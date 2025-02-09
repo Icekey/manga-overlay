@@ -1,8 +1,8 @@
 #![warn(clippy::all, rust_2018_idioms)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use std::{fs, path::Path};
-
 use egui_ocr::OcrApp;
+use log4rs::config::Deserializers;
+use std::{fs, path::Path};
 
 #[tokio::main]
 async fn main() -> eframe::Result {
@@ -36,5 +36,5 @@ fn init_logger() {
             .expect("Config file creation failed");
     }
 
-    log4rs::init_file("config/log4rs.yaml", Default::default()).expect("Logger init failed");
+    log4rs::init_file("config/log4rs.yaml", Deserializers::default()).expect("Logger init failed");
 }

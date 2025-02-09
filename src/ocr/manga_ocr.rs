@@ -21,7 +21,7 @@ pub struct MangaOcrInstance {
     stdin: ChildStdin,
     stdout: Lines<BufReader<ChildStdout>>,
 }
-const CREATE_NO_WINDOW: u32 = 0x08000000;
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 impl MangaOcrInstance {
     pub fn init() -> Result<Self> {
@@ -49,7 +49,7 @@ impl MangaOcrInstance {
     }
 
     pub fn run_ocr(&mut self, input: &str) -> Result<Vec<String>> {
-        self.stdin.write_all(format!("{}\n", input).as_bytes())?;
+        self.stdin.write_all(format!("{input}\n").as_bytes())?;
         let mut output_vec: Vec<String> = Vec::new();
         let mut stdout_text = self.stdout.next().context("no next stdout output")??;
 

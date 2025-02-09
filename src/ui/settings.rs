@@ -127,7 +127,7 @@ impl AppSettings {
             ui.horizontal(|ui| {
                 if ui.button("Start OCR").clicked() {
                     info!("Start OCR");
-                    ui.data_mut(|map| map.insert_temp(start_ocr_id(), true))
+                    ui.data_mut(|map| map.insert_temp(start_ocr_id(), true));
                 }
                 ui.checkbox(&mut self.auto_restart_ocr, "Auto Restart OCR");
             });
