@@ -179,13 +179,13 @@ impl ResultData {
         self.get_jpn_data_with_info().count()
     }
 
-    pub fn get_jpn_data_with_info_by_index(&self, index: usize) -> Option<&JpnData> {
-        let count = self.get_jpn_data_with_info_count();
+    pub fn get_jpn_data_with_info_by_index(&self, index: i32) -> Option<&JpnData> {
+        let count = self.get_jpn_data_with_info_count() as i32;
         if count == 0 {
             return None;
         }
         self.get_jpn_data_with_info()
-            .nth(index.rem_euclid(count))
+            .nth(index.rem_euclid(count) as usize)
     }
 
     fn get_jpn_data_with_info(&self) -> impl Iterator<Item = &JpnData> {
