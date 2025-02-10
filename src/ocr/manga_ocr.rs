@@ -27,6 +27,8 @@ fn init_manga_ocr() -> Py<PyModule> {
 }
 
 pub fn run_manga_ocr(images: &[Image]) -> Vec<String> {
+    assert!(images.len() > 0);
+
     let lock = MANGA_OCR.deref();
     Python::with_gil(|py| {
         // Convert the GIL-independent reference into a usable reference scoped to the GIL lock closure

@@ -53,7 +53,7 @@ impl EventHandler for Context {
                 let background_rect = &mut state.background_rect;
                 background_rect.screenshot_result = result;
                 let settings = &state.settings;
-                if background_rect.start_ocr_at.is_none() && settings.auto_restart_ocr {
+                if settings.auto_restart_ocr {
                     background_rect.start_ocr_at = Some(Instant::now());
                 }
 

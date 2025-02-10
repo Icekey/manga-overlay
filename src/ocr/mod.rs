@@ -60,7 +60,11 @@ impl OcrBackend {
     }
 
     pub fn run_ocr(&self, images: &[Image]) -> Result<Vec<String>> {
-        return match self {
+        if images.is_empty() {
+            return Ok(vec![]);
+        }
+
+        match self {
             OcrBackend::Tesseract(x) => images
                 .iter()
                 .map(|image| tesseract::run_ocr_tesseract(image, x))
@@ -70,7 +74,7 @@ impl OcrBackend {
                 .map(|image| easy_ocr::run_ocr_easy_ocr(image, x))
                 .collect(),
             OcrBackend::MangaOcr => Ok(manga_ocr::run_manga_ocr(images)),
-        };
+        }
     }
 }
 
