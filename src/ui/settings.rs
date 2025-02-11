@@ -3,7 +3,7 @@ use crate::{
     action::open_workdir,
     ocr::{EasyOcrParameter, TesseractParameter},
 };
-use egui::{CollapsingHeader, Color32, Id};
+use egui::{CollapsingHeader, Color32, Id, RichText, Spinner};
 use log::info;
 use rusty_tesseract::get_tesseract_langs;
 
@@ -38,6 +38,8 @@ pub struct AppSettings {
     pub show_capture_image: bool,
     pub show_debug_image: bool,
     pub threshold: f32,
+
+    pub show_debug_cursor: bool,
 }
 
 impl Default for AppSettings {
@@ -62,6 +64,7 @@ impl Default for AppSettings {
             show_capture_image: false,
             show_debug_image: false,
             threshold: 0.5,
+            show_debug_cursor: false,
         }
     }
 }
@@ -73,6 +76,7 @@ impl AppSettings {
             self.show_window_settings(ui);
 
             self.show_ocr_config(ui);
+            self.show_debug_config(ui);
 
             if ui.button("Quit").clicked() {
                 ctx.send_viewport_cmd(egui::ViewportCommand::Close);
@@ -92,11 +96,6 @@ impl AppSettings {
             ui.selectable_value(&mut self.zoom_factor, 3.0, "300%");
         });
 
-        ui.horizontal(|ui| {
-            ui.label("Background Color: ");
-            ui.color_edit_button_srgba(&mut self.clear_color);
-        });
-
         ui.checkbox(&mut self.mouse_passthrough, "Mouse Passthrough");
 
         if ui.checkbox(&mut self.decorations, "Decorations").clicked() {
@@ -104,14 +103,8 @@ impl AppSettings {
                 .send_viewport_cmd(egui::ViewportCommand::Decorations(self.decorations));
         }
 
-        if ui.button("Open Workdir").clicked() {
-            open_workdir();
-        }
-
         ui.checkbox(&mut self.show_history, "Show History");
         ui.checkbox(&mut self.show_statistics, "Show Statistics");
-        ui.checkbox(&mut self.show_capture_image, "Show Capture Image");
-        ui.checkbox(&mut self.show_debug_image, "Show Debug Image");
     }
 
     fn show_ocr_config(&mut self, ui: &mut egui::Ui) {
@@ -161,7 +154,10 @@ impl AppSettings {
     }
 
     fn show_tesseract_config(&mut self, ui: &mut egui::Ui) {
-        ui.checkbox(&mut self.is_tesseract, "Tesseract");
+        ui.horizontal(|ui| {
+            ui.checkbox(&mut self.is_tesseract, "Tesseract");
+            Backend::Tesseract.get_ui(ui);
+        });
         if self.is_tesseract {
             ui.horizontal(|ui| {
                 ui.label("DPI:");
@@ -190,7 +186,10 @@ impl AppSettings {
     }
 
     fn show_easy_ocr_config(&mut self, ui: &mut egui::Ui) {
-        ui.checkbox(&mut self.is_easy_ocr, "EasyOcr");
+        ui.horizontal(|ui| {
+            ui.checkbox(&mut self.is_easy_ocr, "EasyOcr");
+            Backend::EasyOcr.get_ui(ui);
+        });
         if self.is_easy_ocr {
             ui.horizontal(|ui| {
                 ui.label("Language:");
@@ -210,6 +209,75 @@ impl AppSettings {
     }
 
     fn show_manga_ocr_config(&mut self, ui: &mut egui::Ui) {
-        ui.checkbox(&mut self.is_manga_ocr, "MangaOcr");
+        ui.horizontal(|ui| {
+            ui.checkbox(&mut self.is_manga_ocr, "MangaOcr");
+            Backend::MangaOcr.get_ui(ui);
+        });
+    }
+
+    fn show_debug_config(&mut self, ui: &mut egui::Ui) {
+        CollapsingHeader::new("Debug Config").show(ui, |ui| {
+            if ui.button("Open Workdir").clicked() {
+                open_workdir();
+            }
+
+            ui.horizontal(|ui| {
+                ui.label("Background Color: ");
+                ui.color_edit_button_srgba(&mut self.clear_color);
+            });
+
+            ui.checkbox(&mut self.show_capture_image, "Show Capture Image");
+            ui.checkbox(&mut self.show_debug_image, "Show Debug Image");
+            ui.checkbox(&mut self.show_debug_cursor, "Show Debug Cursor");
+        });
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum BackendStatus {
+    Loading,
+    Ready,
+    Error,
+}
+
+impl BackendStatus {
+    fn get_ui(&self, ui: &mut egui::Ui) {
+        match self {
+            BackendStatus::Loading => ui.add(Spinner::new()),
+            BackendStatus::Ready => ui.label(RichText::from("\u{2714}").color(Color32::GREEN)),
+            BackendStatus::Error => ui.label(RichText::from("\u{2716}").color(Color32::RED)),
+        };
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum Backend {
+    Tesseract,
+    EasyOcr,
+    MangaOcr,
+}
+
+impl Backend {
+    fn get_id(self: &Backend) -> Id {
+        match self {
+            Backend::Tesseract => Id::new("Tesseract_Status"),
+            Backend::EasyOcr => Id::new("EasyOcr_Status"),
+            Backend::MangaOcr => Id::new("MangaOcr_Status"),
+        }
+    }
+
+    fn get_status(&self, ui: &egui::Ui) -> BackendStatus {
+        ui.data(|data| {
+            data.get_temp(self.get_id())
+                .unwrap_or_else(|| BackendStatus::Loading)
+        })
+    }
+
+    fn get_ui(&self, ui: &mut egui::Ui) {
+        self.get_status(ui).get_ui(ui);
+    }
+
+    pub fn set_status(&self, ctx: &egui::Context, status: BackendStatus) {
+        ctx.data_mut(|data| data.insert_temp(self.get_id(), status));
     }
 }

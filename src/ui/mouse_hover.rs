@@ -16,10 +16,12 @@ impl OcrApp {
             Color32::GREEN
         };
 
-        egui::Area::new(Id::new("Mouse Position")).show(ctx, |ui| {
-            ui.painter()
-                .circle_filled(get_frame_mouse_position(ctx), 10.0, color);
-        });
+        egui::Area::new(Id::new("Mouse Position"))
+            .order(Order::Debug)
+            .show(ctx, |ui| {
+                ui.painter()
+                    .circle_filled(get_frame_mouse_position(ctx), 10.0, color);
+            });
     }
 
     fn should_mouse_passthrough(&self, ctx: &Context) -> bool {

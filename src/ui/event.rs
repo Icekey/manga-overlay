@@ -1,6 +1,7 @@
 use crate::action::ScreenshotResult;
 use crate::database::{HistoryData, KanjiStatistic};
 use crate::jpn::JpnData;
+use crate::ui::settings::{Backend, BackendStatus};
 use crate::OcrApp;
 use eframe::epaint::textures::TextureOptions;
 use eframe::epaint::ColorImage;
@@ -15,6 +16,7 @@ pub enum Event {
     UpdateHistoryData(Vec<HistoryData>),
     UpdateKanjiStatistic(Vec<KanjiStatistic>),
     UpdateSelectedJpnData(JpnData),
+    UpdateBackendStatus(Backend, BackendStatus)
 }
 
 pub trait EventHandler {
@@ -82,6 +84,9 @@ impl EventHandler for Context {
             }
             Event::UpdateSelectedJpnData(data) => {
                 state.kanji_statistic.selected_jpn_data = data;
+            }
+            Event::UpdateBackendStatus(backend, status) => {
+                backend.set_status(self, status);
             }
         }
     }

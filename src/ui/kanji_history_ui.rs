@@ -27,7 +27,7 @@ pub fn init_history_updater(ctx: Context) {
 
 impl HistoryDataUi {
     pub fn show(&mut self, ctx: &egui::Context) {
-        egui::Window::new("HistoryDataUi").show(ctx, |ui| {
+        egui::Window::new("History").show(ctx, |ui| {
             TopBottomPanel::bottom("HistoryDataUi invisible bottom panel")
                 .show_separator_line(false)
                 .show_inside(ui, |_| ());

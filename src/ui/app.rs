@@ -1,12 +1,14 @@
 use super::background_rect::BackgroundRect;
 use super::kanji_history_ui::{init_history_updater, HistoryDataUi};
 use super::kanji_statistic_ui::{init_kanji_statistic_updater, KanjiStatisticUi};
-use super::settings::AppSettings;
+use super::settings::{AppSettings, Backend, BackendStatus};
 use crate::detect::comictextdetector::DETECT_STATE;
 use crate::ocr::manga_ocr::MANGA_OCR;
+use crate::ui::event::Event::UpdateBackendStatus;
 use crate::ui::event::EventHandler;
 use crate::ui::shutdown::{shutdown_tasks, TASK_TRACKER};
 use egui::Context;
+use rusty_tesseract::get_tesseract_langs;
 use std::sync::LazyLock;
 
 #[derive(serde::Deserialize, serde::Serialize, Default)]
@@ -38,14 +40,30 @@ impl OcrApp {
         init_history_updater(cc.egui_ctx.clone());
         init_kanji_statistic_updater(cc.egui_ctx.clone());
 
-        TASK_TRACKER.spawn(async {
+        Self::init_backends(&cc.egui_ctx);
+
+        ocr_app
+    }
+
+    fn init_backends(ctx: &Context) {
+        let ctx1 = ctx.clone();
+        TASK_TRACKER.spawn(async move {
             LazyLock::force(&MANGA_OCR);
+            LazyLock::force(&DETECT_STATE);
+            ctx1.emit(UpdateBackendStatus(Backend::MangaOcr, BackendStatus::Ready))
         });
         TASK_TRACKER.spawn(async {
             LazyLock::force(&DETECT_STATE);
         });
 
-        ocr_app
+        let ctx2 = ctx.clone();
+        TASK_TRACKER.spawn(async move {
+            let status = match get_tesseract_langs() {
+                Ok(_) => BackendStatus::Ready,
+                Err(_) => BackendStatus::Error,
+            };
+            ctx2.emit(UpdateBackendStatus(Backend::Tesseract, status));
+        });
     }
 
     fn show(&mut self, ctx: &Context) {
@@ -67,7 +85,9 @@ impl OcrApp {
 
         self.update_mouse_passthrough(ctx);
 
-        self.draw_mouse_position(ctx);
+        if self.settings.show_debug_cursor {
+            self.draw_mouse_position(ctx);
+        }
     }
 }
 
