@@ -4,6 +4,7 @@ use rusty_tesseract::Image;
 use serde::{Deserialize, Serialize};
 use strum::{EnumIter, EnumString};
 
+mod easy_ocr;
 pub mod manga_ocr;
 mod tesseract;
 
@@ -12,6 +13,8 @@ pub enum OcrBackend {
     #[strum(ascii_case_insensitive)]
     Tesseract(TesseractParameter),
     #[strum(ascii_case_insensitive)]
+    EasyOcr(EasyOcrParameter),
+    #[strum(ascii_case_insensitive)]
     MangaOcr,
 }
 
@@ -19,6 +22,11 @@ pub enum OcrBackend {
 pub struct TesseractParameter {
     pub lang: String,
     pub dpi: i32,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct EasyOcrParameter {
+    pub lang: String,
 }
 
 impl OcrBackend {
@@ -61,6 +69,10 @@ impl OcrBackend {
                 .iter()
                 .map(|image| tesseract::run_ocr_tesseract(image, x))
                 .collect(),
+            OcrBackend::EasyOcr(x) => images
+                .iter()
+                .map(|image| easy_ocr::run_ocr_easy_ocr(image, x))
+                .collect(),
             OcrBackend::MangaOcr => Ok(manga_ocr::run_manga_ocr(images)),
         }
     }
@@ -89,8 +101,8 @@ mod tests {
     use log::info;
 
     use crate::action::{run_ocr, ResultData, ScreenshotParameter, ScreenshotResult};
-    use crate::ocr::OcrBackend::{MangaOcr, Tesseract};
-    use crate::ocr::{OcrBackend, TesseractParameter};
+    use crate::ocr::OcrBackend::{EasyOcr, MangaOcr, Tesseract};
+    use crate::ocr::{EasyOcrParameter, OcrBackend, TesseractParameter};
 
     #[test]
     fn ocr_backend_serialize() {
@@ -103,6 +115,7 @@ mod tests {
                 lang: "eng".into(),
                 dpi: 0,
             }),
+            EasyOcr(EasyOcrParameter { lang: "eng".into() }),
             MangaOcr,
         ];
 

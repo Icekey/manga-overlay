@@ -210,6 +210,10 @@ fn get_backends(settings: &AppSettings) -> Vec<OcrBackend> {
         backends.push(OcrBackend::Tesseract(settings.tesseract_parameter.clone()));
     }
 
+    if settings.is_easy_ocr {
+        backends.push(OcrBackend::EasyOcr(settings.easy_ocr_parameter.clone()));
+    }
+
     if settings.is_manga_ocr {
         backends.push(OcrBackend::MangaOcr);
     }
