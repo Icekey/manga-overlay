@@ -8,6 +8,7 @@ use crate::ui::event::Event::UpdateBackendStatus;
 use crate::ui::event::EventHandler;
 use crate::ui::shutdown::{shutdown_tasks, TASK_TRACKER};
 use egui::Context;
+use futures::join;
 use rusty_tesseract::get_tesseract_langs;
 use std::sync::LazyLock;
 
@@ -48,12 +49,10 @@ impl OcrApp {
     fn init_backends(ctx: &Context) {
         let ctx1 = ctx.clone();
         TASK_TRACKER.spawn(async move {
-            LazyLock::force(&MANGA_OCR);
-            LazyLock::force(&DETECT_STATE);
+            let init1 = TASK_TRACKER.spawn(async { LazyLock::force(&MANGA_OCR) });
+            let init2 = TASK_TRACKER.spawn(async { LazyLock::force(&DETECT_STATE) });
+            let _ = join!(init1, init2);
             ctx1.emit(UpdateBackendStatus(Backend::MangaOcr, BackendStatus::Ready))
-        });
-        TASK_TRACKER.spawn(async {
-            LazyLock::force(&DETECT_STATE);
         });
 
         let ctx2 = ctx.clone();
