@@ -1,8 +1,5 @@
 use super::background_rect::start_ocr_id;
-use crate::{
-    action::open_workdir,
-    ocr::{EasyOcrParameter, TesseractParameter},
-};
+use crate::{action::open_workdir, ocr::TesseractParameter};
 use egui::{CollapsingHeader, Color32, Id, RichText, Spinner};
 use log::info;
 use rusty_tesseract::get_tesseract_langs;
@@ -24,9 +21,6 @@ pub struct AppSettings {
 
     pub is_tesseract: bool,
     pub tesseract_parameter: TesseractParameter,
-
-    pub is_easy_ocr: bool,
-    pub easy_ocr_parameter: EasyOcrParameter,
 
     pub is_manga_ocr: bool,
 
@@ -50,8 +44,6 @@ impl Default for AppSettings {
             decorations: false,
             is_tesseract: false,
             tesseract_parameter: TesseractParameter::default(),
-            is_easy_ocr: false,
-            easy_ocr_parameter: EasyOcrParameter::default(),
             is_manga_ocr: true,
             langs: get_tesseract_langs().unwrap_or_default(),
             detect_boxes: true,
@@ -146,10 +138,6 @@ impl AppSettings {
 
             //Tesseract
             self.show_tesseract_config(ui);
-            ui.separator();
-
-            //EasyOcr
-            self.show_easy_ocr_config(ui);
         });
     }
 
@@ -176,29 +164,6 @@ impl AppSettings {
                         for lang in &self.langs {
                             ui.selectable_value(
                                 &mut self.tesseract_parameter.lang,
-                                lang.to_string(),
-                                lang,
-                            );
-                        }
-                    });
-            });
-        }
-    }
-
-    fn show_easy_ocr_config(&mut self, ui: &mut egui::Ui) {
-        ui.horizontal(|ui| {
-            ui.checkbox(&mut self.is_easy_ocr, "EasyOcr");
-            Backend::EasyOcr.get_ui(ui);
-        });
-        if self.is_easy_ocr {
-            ui.horizontal(|ui| {
-                ui.label("Language:");
-                egui::ComboBox::from_id_salt(Id::new("easy_ocr_lang"))
-                    .selected_text(self.easy_ocr_parameter.lang.clone())
-                    .show_ui(ui, |ui| {
-                        for lang in &self.langs {
-                            ui.selectable_value(
-                                &mut self.easy_ocr_parameter.lang,
                                 lang.to_string(),
                                 lang,
                             );
@@ -253,7 +218,6 @@ impl BackendStatus {
 #[derive(Debug, Clone)]
 pub enum Backend {
     Tesseract,
-    EasyOcr,
     MangaOcr,
 }
 
@@ -261,7 +225,6 @@ impl Backend {
     fn get_id(self: &Backend) -> Id {
         match self {
             Backend::Tesseract => Id::new("Tesseract_Status"),
-            Backend::EasyOcr => Id::new("EasyOcr_Status"),
             Backend::MangaOcr => Id::new("MangaOcr_Status"),
         }
     }
