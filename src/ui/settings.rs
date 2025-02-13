@@ -1,7 +1,6 @@
 use super::background_rect::start_ocr_id;
 use crate::action::open_workdir;
 use egui::{Button, CollapsingHeader, Color32, Id, RichText, Spinner};
-use log::info;
 
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)]
@@ -58,7 +57,6 @@ impl AppSettings {
                 Backend::MangaOcr.get_status_ui(ui);
                 let enabled = Backend::MangaOcr.get_status(ui) == BackendStatus::Ready;
                 if ui.add_enabled(enabled, Button::new("Start OCR")).clicked() {
-                    info!("Start OCR");
                     ui.data_mut(|map| map.insert_temp(start_ocr_id(), true));
                 }
                 ui.checkbox(&mut self.auto_restart_ocr, "Auto Restart OCR");

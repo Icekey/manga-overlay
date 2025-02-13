@@ -7,7 +7,7 @@ use crate::ui::settings::{Backend, BackendStatus};
 use crate::ui::shutdown::TASK_TRACKER;
 use eframe::epaint::StrokeKind;
 use egui::{Color32, Context, Id, Pos2, Rect, Sense, TextureHandle, Vec2};
-use log::info;
+use log::debug;
 use std::time::Duration;
 use tokio::time::Instant;
 
@@ -164,10 +164,13 @@ impl BackgroundRect {
 
         let ctx = ctx.clone();
         TASK_TRACKER.spawn(async move {
-            info!("Start ocr");
-            ctx.emit(UpdateBackendStatus(Backend::MangaOcr, BackendStatus::Running));
+            debug!("Start ocr");
+            ctx.emit(UpdateBackendStatus(
+                Backend::MangaOcr,
+                BackendStatus::Running,
+            ));
             let screenshot = run_ocr(screenshot_parameter, image).await.unwrap();
-            info!("Start ocr done");
+            debug!("Start ocr done");
             ctx.emit(UpdateBackendStatus(Backend::MangaOcr, BackendStatus::Ready));
 
             ctx.emit(UpdateScreenshotResult(screenshot));

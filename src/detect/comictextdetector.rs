@@ -5,7 +5,7 @@ use image::imageops::FilterType;
 use image::{DynamicImage, GenericImageView, Rgba};
 use imageproc::drawing::draw_hollow_rect_mut;
 use imageproc::rect::Rect;
-use log::{error, info, warn};
+use log::{debug, error, info, warn};
 use ndarray::Array4;
 use ort::execution_providers::{CUDAExecutionProvider, ExecutionProvider};
 use ort::session::builder::GraphOptimizationLevel;
@@ -216,11 +216,11 @@ pub fn combine_overlapping_rects(boxes: Vec<Boxes>) -> Vec<Boxes> {
 }
 
 pub fn run_model(model: &Session, threshold: f32, img: &mut DynamicImage) -> Result<Vec<Boxes>> {
-    info!("detect_boxes...");
+    debug!("detect_boxes...");
     let mut boxes = detect_boxes(model, img)?;
 
     boxes.retain(|x| x.confidence > threshold);
-    info!("detect_boxes done with {}", boxes.len());
+    debug!("detect_boxes done with {}", boxes.len());
     Ok(boxes)
 }
 
