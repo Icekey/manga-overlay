@@ -1,6 +1,8 @@
 use super::background_rect::start_ocr_id;
 use crate::action::open_workdir;
-use egui::{CollapsingHeader, Color32, Id, RichText, Spinner};
+use crate::ui::event::Event::UpdateBackendStatus;
+use crate::ui::event::EventHandler;
+use egui::{Button, CollapsingHeader, Color32, Id, RichText, Spinner};
 use log::info;
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -56,7 +58,8 @@ impl AppSettings {
 
             ui.horizontal(|ui| {
                 Backend::MangaOcr.get_status_ui(ui);
-                if ui.button("Start OCR").clicked() {
+                let enabled = Backend::MangaOcr.get_status(ui) == BackendStatus::Ready;
+                if ui.add_enabled(enabled, Button::new("Start OCR")).clicked() {
                     info!("Start OCR");
                     ui.data_mut(|map| map.insert_temp(start_ocr_id(), true));
                 }
@@ -139,10 +142,11 @@ impl AppSettings {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum BackendStatus {
     Loading,
     Ready,
+    Running,
     Error,
 }
 
@@ -150,7 +154,9 @@ impl BackendStatus {
     fn get_ui(&self, ui: &mut egui::Ui) {
         match self {
             BackendStatus::Loading => ui.add(Spinner::new()),
-            BackendStatus::Ready => ui.label(RichText::from("\u{2714}").color(Color32::GREEN)),
+            BackendStatus::Ready | BackendStatus::Running => {
+                ui.label(RichText::from("\u{2714}").color(Color32::GREEN))
+            }
             BackendStatus::Error => ui.label(RichText::from("\u{2716}").color(Color32::RED)),
         };
     }

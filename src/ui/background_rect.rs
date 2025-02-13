@@ -1,8 +1,9 @@
 use super::{mouse_hover::get_frame_rect, screenshot_result_ui::scale_rect, settings::AppSettings};
 use crate::action::{run_ocr, ScreenshotParameter, ScreenshotResult};
 use crate::ocr::OcrBackend::MangaOcr;
-use crate::ui::event::Event::UpdateScreenshotResult;
+use crate::ui::event::Event::{UpdateBackendStatus, UpdateScreenshotResult};
 use crate::ui::event::EventHandler;
+use crate::ui::settings::{Backend, BackendStatus};
 use crate::ui::shutdown::TASK_TRACKER;
 use eframe::epaint::StrokeKind;
 use egui::{Color32, Context, Id, Pos2, Rect, Sense, TextureHandle, Vec2};
@@ -35,7 +36,7 @@ pub fn start_ocr_id() -> Id {
     Id::new("start_ocr")
 }
 
-fn is_start_ocr(ctx: &egui::Context) -> bool {
+fn is_start_ocr(ctx: &Context) -> bool {
     ctx.data_mut(|map| {
         let id = start_ocr_id();
         let value = map.get_temp(id).unwrap_or(false);
@@ -45,7 +46,7 @@ fn is_start_ocr(ctx: &egui::Context) -> bool {
 }
 
 impl BackgroundRect {
-    pub fn show(&mut self, ctx: &egui::Context, settings: &AppSettings) {
+    pub fn show(&mut self, ctx: &Context, settings: &AppSettings) {
         self.check_start_ocr(ctx, settings);
 
         let bg_response = self.draw_background(ctx);
@@ -164,8 +165,10 @@ impl BackgroundRect {
         let ctx = ctx.clone();
         TASK_TRACKER.spawn(async move {
             info!("Start ocr");
+            ctx.emit(UpdateBackendStatus(Backend::MangaOcr, BackendStatus::Running));
             let screenshot = run_ocr(screenshot_parameter, image).await.unwrap();
             info!("Start ocr done");
+            ctx.emit(UpdateBackendStatus(Backend::MangaOcr, BackendStatus::Ready));
 
             ctx.emit(UpdateScreenshotResult(screenshot));
         });
