@@ -1,7 +1,5 @@
 use super::background_rect::start_ocr_id;
 use crate::action::open_workdir;
-use crate::ui::event::Event::UpdateBackendStatus;
-use crate::ui::event::EventHandler;
 use egui::{Button, CollapsingHeader, Color32, Id, RichText, Spinner};
 use log::info;
 
