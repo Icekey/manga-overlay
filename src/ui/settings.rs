@@ -1,11 +1,7 @@
 use super::background_rect::start_ocr_id;
-use crate::{
-    action::open_workdir,
-    ocr::{EasyOcrParameter, TesseractParameter},
-};
+use crate::action::open_workdir;
 use egui::{CollapsingHeader, Color32, Id, RichText, Spinner};
 use log::info;
-use rusty_tesseract::get_tesseract_langs;
 
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)]
@@ -22,17 +18,6 @@ pub struct AppSettings {
     //OCR Settings
     pub detect_boxes: bool,
 
-    pub is_tesseract: bool,
-    pub tesseract_parameter: TesseractParameter,
-
-    pub is_easy_ocr: bool,
-    pub easy_ocr_parameter: EasyOcrParameter,
-
-    pub is_manga_ocr: bool,
-
-    #[serde(skip)]
-    pub langs: Vec<String>,
-
     pub show_statistics: bool,
     pub show_history: bool,
     pub show_capture_image: bool,
@@ -48,12 +33,6 @@ impl Default for AppSettings {
             clear_color: Color32::TRANSPARENT,
             mouse_passthrough: false,
             decorations: false,
-            is_tesseract: false,
-            tesseract_parameter: TesseractParameter::default(),
-            is_easy_ocr: false,
-            easy_ocr_parameter: EasyOcrParameter::default(),
-            is_manga_ocr: true,
-            langs: get_tesseract_langs().unwrap_or_default(),
             detect_boxes: true,
             zoom_factor: 1.5,
             auto_restart_ocr: true,
@@ -74,6 +53,15 @@ impl AppSettings {
         let window = egui::Window::new("Settings").resizable(false);
         window.show(ctx, |ui| {
             self.show_window_settings(ui);
+
+            ui.horizontal(|ui| {
+                Backend::MangaOcr.get_status_ui(ui);
+                if ui.button("Start OCR").clicked() {
+                    info!("Start OCR");
+                    ui.data_mut(|map| map.insert_temp(start_ocr_id(), true));
+                }
+                ui.checkbox(&mut self.auto_restart_ocr, "Auto Restart OCR");
+            });
 
             self.show_ocr_config(ui);
             self.show_debug_config(ui);
@@ -120,13 +108,6 @@ impl AppSettings {
             });
 
             ui.horizontal(|ui| {
-                if ui.button("Start OCR").clicked() {
-                    info!("Start OCR");
-                    ui.data_mut(|map| map.insert_temp(start_ocr_id(), true));
-                }
-                ui.checkbox(&mut self.auto_restart_ocr, "Auto Restart OCR");
-            });
-            ui.horizontal(|ui| {
                 ui.label("Auto Restart Time(ms):");
 
                 ui.add(egui::Slider::new(&mut self.auto_restart_delay_ms, 0..=5000));
@@ -137,81 +118,6 @@ impl AppSettings {
 
                 ui.add(egui::Slider::new(&mut self.hover_delay_ms, 0..=5000));
             });
-
-            ui.separator();
-
-            //MangaOcr
-            self.show_manga_ocr_config(ui);
-            ui.separator();
-
-            //Tesseract
-            self.show_tesseract_config(ui);
-            ui.separator();
-
-            //EasyOcr
-            self.show_easy_ocr_config(ui);
-        });
-    }
-
-    fn show_tesseract_config(&mut self, ui: &mut egui::Ui) {
-        ui.horizontal(|ui| {
-            ui.checkbox(&mut self.is_tesseract, "Tesseract");
-            Backend::Tesseract.get_ui(ui);
-        });
-        if self.is_tesseract {
-            ui.horizontal(|ui| {
-                ui.label("DPI:");
-
-                ui.add(egui::Slider::new(
-                    &mut self.tesseract_parameter.dpi,
-                    10..=500,
-                ));
-            });
-
-            ui.horizontal(|ui| {
-                ui.label("Language:");
-                egui::ComboBox::from_id_salt(Id::new("tesseract_lang"))
-                    .selected_text(self.tesseract_parameter.lang.clone())
-                    .show_ui(ui, |ui| {
-                        for lang in &self.langs {
-                            ui.selectable_value(
-                                &mut self.tesseract_parameter.lang,
-                                lang.to_string(),
-                                lang,
-                            );
-                        }
-                    });
-            });
-        }
-    }
-
-    fn show_easy_ocr_config(&mut self, ui: &mut egui::Ui) {
-        ui.horizontal(|ui| {
-            ui.checkbox(&mut self.is_easy_ocr, "EasyOcr");
-            Backend::EasyOcr.get_ui(ui);
-        });
-        if self.is_easy_ocr {
-            ui.horizontal(|ui| {
-                ui.label("Language:");
-                egui::ComboBox::from_id_salt(Id::new("easy_ocr_lang"))
-                    .selected_text(self.easy_ocr_parameter.lang.clone())
-                    .show_ui(ui, |ui| {
-                        for lang in &self.langs {
-                            ui.selectable_value(
-                                &mut self.easy_ocr_parameter.lang,
-                                lang.to_string(),
-                                lang,
-                            );
-                        }
-                    });
-            });
-        }
-    }
-
-    fn show_manga_ocr_config(&mut self, ui: &mut egui::Ui) {
-        ui.horizontal(|ui| {
-            ui.checkbox(&mut self.is_manga_ocr, "MangaOcr");
-            Backend::MangaOcr.get_ui(ui);
         });
     }
 
@@ -252,16 +158,12 @@ impl BackendStatus {
 
 #[derive(Debug, Clone)]
 pub enum Backend {
-    Tesseract,
-    EasyOcr,
     MangaOcr,
 }
 
 impl Backend {
     fn get_id(self: &Backend) -> Id {
         match self {
-            Backend::Tesseract => Id::new("Tesseract_Status"),
-            Backend::EasyOcr => Id::new("EasyOcr_Status"),
             Backend::MangaOcr => Id::new("MangaOcr_Status"),
         }
     }
@@ -273,7 +175,7 @@ impl Backend {
         })
     }
 
-    fn get_ui(&self, ui: &mut egui::Ui) {
+    fn get_status_ui(&self, ui: &mut egui::Ui) {
         self.get_status(ui).get_ui(ui);
     }
 

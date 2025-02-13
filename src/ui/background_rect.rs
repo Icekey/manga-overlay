@@ -1,9 +1,6 @@
 use super::{mouse_hover::get_frame_rect, screenshot_result_ui::scale_rect, settings::AppSettings};
-use crate::{
-    action::{run_ocr, ScreenshotParameter, ScreenshotResult},
-    ocr::OcrBackend,
-};
-
+use crate::action::{run_ocr, ScreenshotParameter, ScreenshotResult};
+use crate::ocr::OcrBackend::MangaOcr;
 use crate::ui::event::Event::UpdateScreenshotResult;
 use crate::ui::event::EventHandler;
 use crate::ui::shutdown::TASK_TRACKER;
@@ -158,7 +155,7 @@ impl BackgroundRect {
             height: global_rect.height() as u32,
             detect_boxes: settings.detect_boxes,
             full_capture_ocr: !settings.detect_boxes,
-            backends: get_backends(settings),
+            backends: vec![MangaOcr],
             threshold: settings.threshold,
         };
 
@@ -201,22 +198,4 @@ impl BackgroundRect {
                 );
             })
     }
-}
-
-fn get_backends(settings: &AppSettings) -> Vec<OcrBackend> {
-    let mut backends = vec![];
-
-    if settings.is_tesseract {
-        backends.push(OcrBackend::Tesseract(settings.tesseract_parameter.clone()));
-    }
-
-    if settings.is_easy_ocr {
-        backends.push(OcrBackend::EasyOcr(settings.easy_ocr_parameter.clone()));
-    }
-
-    if settings.is_manga_ocr {
-        backends.push(OcrBackend::MangaOcr);
-    }
-
-    backends
 }

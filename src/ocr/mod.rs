@@ -4,29 +4,12 @@ use rusty_tesseract::Image;
 use serde::{Deserialize, Serialize};
 use strum::{EnumIter, EnumString};
 
-mod easy_ocr;
 pub mod manga_ocr;
-mod tesseract;
 
 #[derive(Debug, Clone, PartialEq, strum::Display, EnumString, EnumIter, Serialize, Deserialize)]
 pub enum OcrBackend {
     #[strum(ascii_case_insensitive)]
-    Tesseract(TesseractParameter),
-    #[strum(ascii_case_insensitive)]
-    EasyOcr(EasyOcrParameter),
-    #[strum(ascii_case_insensitive)]
     MangaOcr,
-}
-
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
-pub struct TesseractParameter {
-    pub lang: String,
-    pub dpi: i32,
-}
-
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
-pub struct EasyOcrParameter {
-    pub lang: String,
 }
 
 impl OcrBackend {
@@ -65,14 +48,6 @@ impl OcrBackend {
         }
 
         match self {
-            OcrBackend::Tesseract(x) => images
-                .iter()
-                .map(|image| tesseract::run_ocr_tesseract(image, x))
-                .collect(),
-            OcrBackend::EasyOcr(x) => images
-                .iter()
-                .map(|image| easy_ocr::run_ocr_easy_ocr(image, x))
-                .collect(),
             OcrBackend::MangaOcr => Ok(manga_ocr::run_manga_ocr(images)),
         }
     }
@@ -101,30 +76,16 @@ mod tests {
     use log::info;
 
     use crate::action::{run_ocr, ResultData, ScreenshotParameter, ScreenshotResult};
-    use crate::ocr::OcrBackend::{EasyOcr, MangaOcr, Tesseract};
-    use crate::ocr::{EasyOcrParameter, OcrBackend, TesseractParameter};
+    use crate::ocr::OcrBackend;
+    use crate::ocr::OcrBackend::MangaOcr;
 
     #[test]
     fn ocr_backend_serialize() {
-        let backends: Vec<OcrBackend> = vec![
-            Tesseract(TesseractParameter {
-                lang: "jpn".into(),
-                dpi: 200,
-            }),
-            Tesseract(TesseractParameter {
-                lang: "eng".into(),
-                dpi: 0,
-            }),
-            EasyOcr(EasyOcrParameter { lang: "eng".into() }),
-            MangaOcr,
-        ];
+        let backends: Vec<OcrBackend> = vec![MangaOcr];
 
         let json = serde_json::to_string(&backends).unwrap();
         info!("json: {}", json);
-        assert_eq!(
-            json,
-            r#"[{"Tesseract":{"lang":"jpn","dpi":200}},{"Tesseract":{"lang":"eng","dpi":null}},{"EasyOcr":{"lang":"eng"}},"MangaOcr"]"#
-        );
+        assert_eq!(json, r#"["MangaOcr"]"#);
 
         let result: Vec<OcrBackend> = serde_json::from_str(&json).unwrap();
         info!("parsed: {:?}", result);

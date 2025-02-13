@@ -9,7 +9,6 @@ use crate::ui::event::EventHandler;
 use crate::ui::shutdown::{shutdown_tasks, TASK_TRACKER};
 use egui::Context;
 use futures::join;
-use rusty_tesseract::get_tesseract_langs;
 use std::sync::LazyLock;
 
 #[derive(serde::Deserialize, serde::Serialize, Default)]
@@ -53,15 +52,6 @@ impl OcrApp {
             let init2 = TASK_TRACKER.spawn(async { LazyLock::force(&DETECT_STATE) });
             let _ = join!(init1, init2);
             ctx1.emit(UpdateBackendStatus(Backend::MangaOcr, BackendStatus::Ready))
-        });
-
-        let ctx2 = ctx.clone();
-        TASK_TRACKER.spawn(async move {
-            let status = match get_tesseract_langs() {
-                Ok(_) => BackendStatus::Ready,
-                Err(_) => BackendStatus::Error,
-            };
-            ctx2.emit(UpdateBackendStatus(Backend::Tesseract, status));
         });
     }
 
