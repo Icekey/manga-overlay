@@ -50,8 +50,16 @@ impl OcrApp {
         TASK_TRACKER.spawn(async move {
             let init1 = TASK_TRACKER.spawn(async { LazyLock::force(&MANGA_OCR) });
             let init2 = TASK_TRACKER.spawn(async { LazyLock::force(&DETECT_STATE) });
-            let _ = join!(init1, init2);
-            ctx1.emit(UpdateBackendStatus(Backend::MangaOcr, BackendStatus::Ready))
+            let (result1, result2) = join!(init1, init2);
+
+            ctx1.emit(UpdateBackendStatus(
+                Backend::MangaOcr,
+                if result1.is_ok() && result2.is_ok() {
+                    BackendStatus::Ready
+                } else {
+                    BackendStatus::Error
+                },
+            ));
         });
     }
 
