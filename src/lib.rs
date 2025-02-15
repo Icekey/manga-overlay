@@ -12,7 +12,7 @@ mod ui;
 use action::ScreenshotParameter;
 pub use ui::app::OcrApp;
 
-use anyhow::{Ok, Result};
+use anyhow::{Context, Ok, Result};
 use image::{DynamicImage, RgbaImage};
 use rusty_tesseract::Args;
 use screenshots::Screen;
@@ -35,7 +35,8 @@ impl ScreenshotParameter {
         )?;
 
         let bytes = image.to_vec();
-        let image = RgbaImage::from_raw(self.width, self.height, bytes).unwrap();
+        let image = RgbaImage::from_raw(image.width(), image.height(), bytes)
+            .context("screenshot failed")?;
 
         Ok(DynamicImage::ImageRgba8(image))
     }
