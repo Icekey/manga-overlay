@@ -6,7 +6,6 @@ use itertools::Itertools;
 use log::info;
 use open::that;
 use ::serde::{Deserialize, Serialize};
-use std::time::SystemTime;
 
 use crate::detect::comictextdetector::{combine_overlapping_rects, Boxes, DETECT_STATE};
 use crate::jpn::{dict, get_jpn_data, JpnData};
@@ -107,19 +106,10 @@ fn run_ocr_on_cutout_images(
         .filter(|x| x.width() != 0 && x.height() != 0)
         .collect();
 
-    let start = SystemTime::now();
-
-    let vec = OcrBackend::run_backends(&cutout_images, backends)
+    OcrBackend::run_backends(&cutout_images, backends)
         .into_iter()
         .zip(rects)
-        .collect();
-
-    let end = SystemTime::now();
-    let duration = end.duration_since(start).expect("Time went backwards!");
-
-    info!("OCR Elapsed time: {}ms", duration.as_millis());
-
-    vec
+        .collect()
 }
 
 async fn get_result_data(ocr: String, rect: Rect) -> ResultData {

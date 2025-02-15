@@ -30,11 +30,12 @@ impl ScreenshotResult {
                     ui.set_height(rect.height());
                     let contains = rect.contains(frame_mouse_position);
 
-                    if contains || rect_is_clicked {
+                    let is_active = contains || rect_is_clicked;
+                    if is_active {
                         show_ocr_info_window(ctx, &rect, result, i);
                     }
 
-                    let color = if contains {
+                    let color = if is_active {
                         Color32::GREEN
                     } else {
                         Color32::BLUE

@@ -1,6 +1,6 @@
 [package]
 name = "egui_ocr"
-version = "0.2.0"
+version = "1.0.0"
 edition = "2021"
 build = "build.rs"
 
@@ -34,7 +34,6 @@ itertools = "0.12.1"
 multimap = "0.10.0"
 serde_with = "3.3.0"
 strum = { version = "0.26.1", features = ["derive"] }
-regex = "1.10.0"
 scraper = "0.19.0"
 reqwest = "0.11.23"
 ort = { version = "2.0.0-alpha.9", features = ["cuda"] }
