@@ -4,9 +4,9 @@ use anyhow::{Context, Ok, Result};
 use rusqlite::Connection;
 
 const DATABASE_FILENAME: &str = if cfg!(test) {
-    "egui_ocr_test.db"
+    "manga_overlay_test.db"
 } else {
-    "egui_ocr.db"
+    "manga_overlay.db"
 };
 
 pub fn create_database() -> Result<Connection> {

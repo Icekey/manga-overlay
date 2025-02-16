@@ -1,7 +1,7 @@
 #![warn(clippy::all, rust_2018_idioms)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use egui_ocr::OcrApp;
 use log4rs::config::Deserializers;
+use manga_overlay::OcrApp;
 use std::{fs, path::Path};
 
 #[tokio::main]
@@ -20,7 +20,7 @@ async fn main() -> eframe::Result {
         ..Default::default()
     };
     eframe::run_native(
-        "egui OCR",
+        "Manga Overlay",
         native_options,
         Box::new(|cc| Ok(Box::new(OcrApp::new(cc)))),
     )

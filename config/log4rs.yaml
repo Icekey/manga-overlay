@@ -6,7 +6,7 @@ appenders:
       pattern: "{h({l})} {d(%Y-%m-%d %H:%M:%S)} {f}:{L} - {m}{n}"
   requests:
     kind: file
-    path: "log/egui_ocr.log"
+    path: "log/manga_overlay.log"
     encoder:
       pattern: "{h({l})} {d(%Y-%m-%d %H:%M:%S)} {f}:{L} - {m}{n}"
 root:

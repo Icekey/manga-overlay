@@ -965,42 +965,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "egui_ocr"
-version = "1.0.0"
-dependencies = [
- "anyhow",
- "eframe",
- "egui",
- "egui_extras",
- "enigo",
- "futures",
- "image 0.25.5",
- "imageproc",
- "itertools",
- "jmdict",
- "log",
- "log4rs",
- "multimap",
- "ndarray",
- "open",
- "ort",
- "pyo3",
- "reqwest",
- "rusqlite",
- "rusty-tesseract",
- "scraper",
- "screenshots",
- "serde",
- "serde_json",
- "serde_with",
- "serial_test",
- "strum",
- "tokio",
- "tokio-util",
- "winres",
-]
-
-[[package]]
 name = "either"
 version = "1.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2295,6 +2259,42 @@ name = "mac"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c41e0c4fef86961ac6d6f8a82609f55f31b05e4fce149ac5710e439df7619ba4"
+
+[[package]]
+name = "manga_overlay"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "eframe",
+ "egui",
+ "egui_extras",
+ "enigo",
+ "futures",
+ "image 0.25.5",
+ "imageproc",
+ "itertools",
+ "jmdict",
+ "log",
+ "log4rs",
+ "multimap",
+ "ndarray",
+ "open",
+ "ort",
+ "pyo3",
+ "reqwest",
+ "rusqlite",
+ "rusty-tesseract",
+ "scraper",
+ "screenshots",
+ "serde",
+ "serde_json",
+ "serde_with",
+ "serial_test",
+ "strum",
+ "tokio",
+ "tokio-util",
+ "winres",
+]
 
 [[package]]
 name = "markup5ever"
