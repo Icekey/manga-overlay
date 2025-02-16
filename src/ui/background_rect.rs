@@ -7,7 +7,7 @@ use crate::ui::settings::{Backend, BackendStatus};
 use crate::ui::shutdown::TASK_TRACKER;
 use eframe::epaint::StrokeKind;
 use egui::{Color32, Context, Id, Pos2, Rect, Sense, TextureHandle, Vec2};
-use log::debug;
+use log::{debug, warn};
 use std::time::Duration;
 use tokio::time::Instant;
 
@@ -160,7 +160,10 @@ impl BackgroundRect {
             threshold: settings.threshold,
         };
 
-        let image = screenshot_parameter.get_screenshot().unwrap();
+        let Ok(image) = screenshot_parameter.get_screenshot() else {
+            warn!("screenshot_parameter get screenshot failed");
+            return;
+        };
 
         let ctx = ctx.clone();
         TASK_TRACKER.spawn(async move {
