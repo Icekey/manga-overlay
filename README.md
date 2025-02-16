@@ -3,6 +3,8 @@
 Desktop Overlay for Japanese manga. The primary focus is learning japanese by making the search for kanji meanings
 faster to enable reading manga.
 
+Currently only Windows is supported.
+
 ## Usage
 
 Select an area by dragging the background of the overlay. The app detects japanese text in the selected area and shows
