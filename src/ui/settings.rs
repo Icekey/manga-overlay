@@ -65,9 +65,17 @@ impl AppSettings {
             self.show_ocr_config(ui);
             self.show_debug_config(ui);
 
-            if ui.button("Quit").clicked() {
-                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-            }
+            ui.separator();
+            ui.horizontal(|ui| {
+                if ui.button(format!("{:^15}", "Quit")).clicked() {
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                }
+                ui.add_space(80.0);
+                ui.hyperlink_to(
+                    "\u{E624} Manga Overlay on GitHub",
+                    "https://github.com/Icekey/manga-overlay",
+                );
+            });
         });
     }
 
@@ -99,7 +107,8 @@ impl AppSettings {
             ui.horizontal(|ui| {
                 ui.selectable_value(&mut self.detect_boxes, false, "Full Capture");
                 ui.selectable_value(&mut self.detect_boxes, true, "Detect Boxes");
-
+            });
+            ui.horizontal(|ui| {
                 if !self.detect_boxes {
                     ui.disable()
                 }
@@ -107,15 +116,16 @@ impl AppSettings {
             });
 
             ui.horizontal(|ui| {
-                ui.label("Auto Restart Time(ms):");
-
-                ui.add(egui::Slider::new(&mut self.auto_restart_delay_ms, 0..=5000));
+                ui.add(
+                    egui::Slider::new(&mut self.auto_restart_delay_ms, 0..=5000)
+                        .text("Auto Restart Time (ms)"),
+                );
             });
 
             ui.horizontal(|ui| {
-                ui.label("Hover Delay(ms):");
-
-                ui.add(egui::Slider::new(&mut self.hover_delay_ms, 0..=5000));
+                ui.add(
+                    egui::Slider::new(&mut self.hover_delay_ms, 0..=5000).text("Hover Delay (ms)"),
+                );
             });
         });
     }
