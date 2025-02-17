@@ -5,6 +5,13 @@ faster to enable reading manga.
 
 Currently only Windows is supported.
 
+## Setup
+- Install [Rust](https://www.rust-lang.org/tools/install)
+- Install [Python 3.13](https://www.python.org/downloads/) and add it as PATH variable
+- Clone the repo with [Git](https://git-scm.com/downloads/win)
+- Optional install Cuda for faster OCR
+- Build a exe with "cargo build --release" or run with "cargo run"
+
 ## Usage
 
 Select an area by dragging the background of the overlay. The app detects japanese text in the selected area and shows
