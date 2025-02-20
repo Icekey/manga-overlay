@@ -1,7 +1,7 @@
 [package]
 name = "manga_overlay"
 version = "1.0.0"
-edition = "2021"
+edition = "2024"
 build = "build.rs"
 
 [dependencies.pyo3]
