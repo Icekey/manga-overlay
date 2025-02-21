@@ -5,7 +5,7 @@ use crate::ui::settings::{Backend, BackendStatus};
 use crate::OcrApp;
 use eframe::epaint::textures::TextureOptions;
 use eframe::epaint::ColorImage;
-use egui::{Context, Id, TextureHandle};
+use egui::{Context, Id, Memory, TextureHandle};
 use image::DynamicImage;
 use std::sync::LazyLock;
 use tokio::time::Instant;
@@ -16,7 +16,8 @@ pub enum Event {
     UpdateHistoryData(Vec<HistoryData>),
     UpdateKanjiStatistic(Vec<KanjiStatistic>),
     UpdateSelectedJpnData(JpnData),
-    UpdateBackendStatus(Backend, BackendStatus)
+    UpdateBackendStatus(Backend, BackendStatus),
+    ResetUi,
 }
 
 pub trait EventHandler {
@@ -87,6 +88,11 @@ impl EventHandler for Context {
             }
             Event::UpdateBackendStatus(backend, status) => {
                 backend.set_status(self, status);
+            }
+            Event::ResetUi => {
+                self.memory_mut(|x| *x = Memory::default());
+                *state = OcrApp::default();
+                OcrApp::init_backends(self);
             }
         }
     }

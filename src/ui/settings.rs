@@ -1,5 +1,7 @@
 use super::background_rect::start_ocr_id;
 use crate::action::open_workdir;
+use crate::ui::event::Event::ResetUi;
+use crate::ui::event::EventHandler;
 use egui::{Button, CollapsingHeader, Color32, Id, RichText, Spinner};
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -49,7 +51,9 @@ impl Default for AppSettings {
 
 impl AppSettings {
     pub(crate) fn show(&mut self, ctx: &egui::Context) {
-        let window = egui::Window::new("Settings").resizable(false);
+        let window = egui::Window::new("Settings")
+            .default_width(50.0)
+            .resizable(false);
         window.show(ctx, |ui| {
             self.show_window_settings(ui);
 
@@ -144,6 +148,10 @@ impl AppSettings {
             ui.checkbox(&mut self.show_capture_image, "Show Capture Image");
             ui.checkbox(&mut self.show_debug_image, "Show Debug Image");
             ui.checkbox(&mut self.show_debug_cursor, "Show Debug Cursor");
+
+            if ui.button("Reset UI").clicked() {
+                ui.ctx().emit(ResetUi);
+            }
         });
     }
 }

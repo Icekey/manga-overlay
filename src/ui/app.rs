@@ -45,7 +45,7 @@ impl OcrApp {
         ocr_app
     }
 
-    fn init_backends(ctx: &Context) {
+    pub fn init_backends(ctx: &Context) {
         let ctx1 = ctx.clone();
         TASK_TRACKER.spawn(async move {
             let init1 = TASK_TRACKER.spawn(async { LazyLock::force(&MANGA_OCR) });
