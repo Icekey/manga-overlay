@@ -1,5 +1,5 @@
 use eframe::epaint::StrokeKind;
-use egui::{Color32, Id, Pos2, Rect, RichText, Sense, Vec2};
+use egui::{Align2, Color32, Id, Pos2, Rect, RichText, Sense, Vec2};
 use std::time::{Duration, Instant};
 
 use super::mouse_hover::get_frame_mouse_position;
@@ -150,9 +150,17 @@ fn is_area_hover_start(ctx: &egui::Context, area_hovered: bool) -> bool {
 }
 
 fn show_ocr_info_window(ctx: &egui::Context, rect: &Rect, result: &ResultData, index: usize) {
+    let right_side = rect.min.x > ctx.screen_rect().width() * 2.0 / 3.0;
+
+    let (pivot, default_pos_x) = if right_side {
+        (Align2::RIGHT_TOP, rect.left() - 3.0)
+    } else {
+        (Align2::LEFT_TOP, rect.right() + 3.0)
+    };
     egui::Window::new(format!("OCR Info {} {}", index, result.ocr))
         .title_bar(false)
-        .default_pos(Pos2::new(rect.right() + 3.0, rect.top()))
+        .pivot(pivot)
+        .default_pos(Pos2::new(default_pos_x, rect.top()))
         .default_width(500.0)
         .show(ctx, |ui| {
             if !result.translation.is_empty() && is_translation_visible(ctx) {
