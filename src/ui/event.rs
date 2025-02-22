@@ -7,7 +7,9 @@ use eframe::epaint::textures::TextureOptions;
 use eframe::epaint::ColorImage;
 use egui::{Context, Id, Memory, TextureHandle};
 use image::DynamicImage;
+use std::ops::Add;
 use std::sync::LazyLock;
+use std::time::Duration;
 use tokio::time::Instant;
 
 #[derive(Debug, Clone)]
@@ -53,12 +55,23 @@ impl EventHandler for Context {
     fn handle_event(&self, state: &mut OcrApp, event: Event) {
         match event {
             Event::UpdateScreenshotResult(result) => {
+                if self
+                    .data(|x| x.get_temp(Id::new("ocr_is_cancelled")))
+                    .unwrap_or(false)
+                {
+                    return;
+                }
+
                 let background_rect = &mut state.background_rect;
-                background_rect.screenshot_result = result;
                 let settings = &state.settings;
                 if settings.auto_restart_ocr {
-                    background_rect.start_ocr_at = Some(Instant::now());
+                    //Restart OCR
+                    background_rect.start_ocr_at = Some(
+                        Instant::now().add(Duration::from_millis(settings.auto_restart_delay_ms)),
+                    );
                 }
+
+                background_rect.screenshot_result = result;
 
                 background_rect.capture_image_handle = create_texture(
                     self,

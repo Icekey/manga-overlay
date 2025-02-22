@@ -60,6 +60,10 @@ impl BackgroundRect {
             self.screenshot_result = Default::default();
         }
 
+        if bg_response.response.dragged() {
+            ctx.data_mut(|x| x.insert_temp(Id::new("ocr_is_cancelled"), true));
+        }
+
         if settings.show_capture_image {
             show_image_in_window(ctx, "Capture Image", self.capture_image_handle.clone());
         }
@@ -88,8 +92,7 @@ impl BackgroundRect {
             });
 
             let elapsed = instant.elapsed();
-            return elapsed >= Duration::from_millis(settings.auto_restart_delay_ms)
-                && not_hovering;
+            return elapsed > Duration::from_millis(0) && not_hovering;
         }
         false
     }
@@ -117,13 +120,14 @@ impl BackgroundRect {
             }
         }
 
-        if response.dragged() || response.drag_stopped() {
+        if response.dragged() {
             if let Some(mpos) = response.interact_pointer_pos() {
                 self.end_pos = mpos * zoom_factor;
-                if response.drag_stopped() {
-                    return true;
-                }
             }
+        }
+
+        if response.drag_stopped() {
+            return true;
         }
 
         false
@@ -164,6 +168,8 @@ impl BackgroundRect {
             warn!("screenshot_parameter get screenshot failed");
             return;
         };
+
+        ctx.data_mut(|x| x.insert_temp(Id::new("ocr_is_cancelled"), false));
 
         let ctx = ctx.clone();
         TASK_TRACKER.spawn(async move {
