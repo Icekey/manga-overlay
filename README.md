@@ -7,7 +7,6 @@ Currently only Windows is supported.
 
 ## Setup
 - Install [Rust](https://www.rust-lang.org/tools/install)
-- Install [Python 3.13](https://www.python.org/downloads/) and add it as PATH variable
 - Clone the repo with [Git](https://git-scm.com/downloads/win)
 - Optional install Cuda for faster OCR
 - Build a exe with "cargo build --release" or run with "cargo run"
@@ -42,3 +41,4 @@ This project was done with the usage of:
 - [kanji-data](https://github.com/davidluzgouveia/kanji-data) kanji meaning dataset
 - [comic-text-detector](https://github.com/dmMaze/comic-text-detector) trimmed model for textbox detection
 - [manga-ocr](https://github.com/kha-white/manga-ocr) model/python scripts for text detection
+- [koharu](https://github.com/mayocream/koharu) onnx models and scripts for text detection

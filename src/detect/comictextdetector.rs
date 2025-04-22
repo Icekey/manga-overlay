@@ -1,14 +1,13 @@
 use std::sync::{Arc, LazyLock, Mutex};
 
+use crate::detect::session_builder::create_session_builder;
 use anyhow::Result;
 use image::imageops::FilterType;
 use image::{DynamicImage, GenericImageView, Rgba};
 use imageproc::drawing::draw_hollow_rect_mut;
 use imageproc::rect::Rect;
-use log::{debug, error, info, warn};
+use log::{debug, error};
 use ndarray::Array4;
-use ort::execution_providers::{CUDAExecutionProvider, ExecutionProvider};
-use ort::session::builder::GraphOptimizationLevel;
 use ort::session::Session;
 
 const INPUT_WIDTH: f32 = 1024.0;
@@ -44,23 +43,7 @@ impl DetectState {
 }
 
 pub fn load_model() -> Result<Session> {
-    let mut builder = Session::builder()?
-        .with_optimization_level(GraphOptimizationLevel::Level3)?
-        .with_intra_threads(4)?;
-
-    let cuda = CUDAExecutionProvider::default();
-    if cuda.is_available()? {
-        info!("CUDA is available");
-    } else {
-        warn!("CUDA is not available");
-    }
-
-    let result = cuda.register(&mut builder);
-    if result.is_err() {
-        warn!("Failed to register CUDA! {}", result.unwrap_err());
-    } else {
-        info!("Registered CUDA");
-    }
+    let builder = create_session_builder()?;
 
     let detector_model = include_bytes!("../../resources/comictextdetector_blk.pt.onnx");
 
@@ -235,9 +218,9 @@ pub fn draw_rects(img: &mut DynamicImage, boxes: &[Boxes]) {
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
-
     use super::*;
+    use log::info;
+    use std::path::Path;
 
     #[test]
     fn test_load() {

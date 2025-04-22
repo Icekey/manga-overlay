@@ -1,6 +1,6 @@
+use crate::ocr::manga_ocr::MANGA_OCR;
 use anyhow::Result;
 use image::DynamicImage;
-use rusty_tesseract::Image;
 use serde::{Deserialize, Serialize};
 use strum::{EnumIter, EnumString};
 
@@ -14,15 +14,11 @@ pub enum OcrBackend {
 
 impl OcrBackend {
     pub fn run_backends(images: &[DynamicImage], backends: &[OcrBackend]) -> Vec<String> {
-        let image: Vec<Image> = images
-            .iter()
-            .filter_map(|x| Image::from_dynamic_image(x).ok())
-            .collect();
         let backend_count: usize = backends.len();
 
         let backend_outputs: Vec<Vec<String>> = backends
             .iter()
-            .map(|e| (e, e.run_ocr(&image)))
+            .map(|e| (e, e.run_ocr(&images)))
             .map(|e| concat_backend_output(e.0, e.1, backend_count))
             .collect();
 
@@ -42,15 +38,23 @@ impl OcrBackend {
         output
     }
 
-    pub fn run_ocr(&self, images: &[Image]) -> Result<Vec<String>> {
+    pub fn run_ocr(&self, images: &[DynamicImage]) -> Result<Vec<String>> {
         if images.is_empty() {
             return Ok(vec![]);
         }
 
         match self {
-            OcrBackend::MangaOcr => Ok(manga_ocr::run_manga_ocr(images)),
+            OcrBackend::MangaOcr => Ok(run_manga_ocr(images)),
         }
     }
+}
+
+fn run_manga_ocr(images: &[DynamicImage]) -> Vec<String> {
+    let model = MANGA_OCR.lock().unwrap();
+    if let Ok(model) = model.as_ref() {
+        return model.inference(images).unwrap();
+    }
+    vec![]
 }
 
 fn concat_backend_output(

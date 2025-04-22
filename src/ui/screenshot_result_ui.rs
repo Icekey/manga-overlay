@@ -10,7 +10,7 @@ impl ScreenshotResult {
     pub fn show(&mut self, ctx: &egui::Context, screenshot_rect: &Rect) -> bool {
         self.update_translation(ctx);
 
-        let frame_mouse_position = get_frame_mouse_position(ctx);
+        let frame_mouse_position = get_frame_mouse_position(ctx).unwrap_or_default();
         let mut area_hovered = false;
 
         let clicked_result_id = Id::new("clicked_result");

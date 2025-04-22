@@ -1,4 +1,5 @@
 use crate::OcrApp;
+use anyhow::Result;
 use egui::{Color32, Context, Id, Order, Pos2, Rect, Vec2};
 use enigo::{Enigo, Mouse, Settings as EnigoSettings};
 
@@ -19,8 +20,9 @@ impl OcrApp {
         egui::Area::new(Id::new("Mouse Position"))
             .order(Order::Debug)
             .show(ctx, |ui| {
-                ui.painter()
-                    .circle_filled(get_frame_mouse_position(ctx), 10.0, color);
+                if let Ok(position) = get_frame_mouse_position(ctx) {
+                    ui.painter().circle_filled(position, 10.0, color);
+                }
             });
     }
 
@@ -30,23 +32,26 @@ impl OcrApp {
 }
 
 pub fn is_mouse_over_background(ctx: &Context) -> bool {
-    if let Some(layer_id_at) = ctx.layer_id_at(get_frame_mouse_position(ctx)) {
+    let Ok(position) = get_frame_mouse_position(ctx) else {
+        return false;
+    };
+    if let Some(layer_id_at) = ctx.layer_id_at(position) {
         layer_id_at.order == Order::Background
     } else {
         false
     }
 }
 
-pub fn get_frame_mouse_position(ctx: &Context) -> Pos2 {
+pub fn get_frame_mouse_position(ctx: &Context) -> Result<Pos2> {
     let frame_rect = get_frame_rect(ctx);
 
-    let mouse_pos2 = get_mouse_position();
+    let mouse_pos2 = get_mouse_position()?;
 
     let zoom_factor = ctx.zoom_factor();
     let mouse_pos2 = Pos2::new(mouse_pos2.x / zoom_factor, mouse_pos2.y / zoom_factor);
     let Vec2 { x, y } = mouse_pos2 - frame_rect.min;
 
-    Pos2::new(x, y)
+    Ok(Pos2::new(x, y))
 }
 
 pub fn get_frame_rect(ctx: &Context) -> Rect {
@@ -57,9 +62,9 @@ pub fn get_frame_rect(ctx: &Context) -> Rect {
     frame_rect
 }
 
-fn get_mouse_position() -> Pos2 {
-    let enigo = Enigo::new(&EnigoSettings::default()).unwrap();
-    let (x, y) = enigo.location().unwrap();
+fn get_mouse_position() -> Result<Pos2> {
+    let enigo = Enigo::new(&EnigoSettings::default())?;
+    let (x, y) = enigo.location()?;
 
-    Pos2::new(x as f32, y as f32)
+    Ok(Pos2::new(x as f32, y as f32))
 }
