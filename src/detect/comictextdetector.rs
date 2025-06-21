@@ -63,7 +63,7 @@ pub fn detect_boxes(model: &Session, original_img: &DynamicImage) -> Result<Vec<
     for pixel in img.pixels() {
         let x = pixel.0 as _;
         let y = pixel.1 as _;
-        let [r, g, b, _] = pixel.2 .0;
+        let [r, g, b, _] = pixel.2.0;
         input[[0, 0, y, x]] = f32::from(r) / 255.;
         input[[0, 1, y, x]] = f32::from(g) / 255.;
         input[[0, 2, y, x]] = f32::from(b) / 255.;
@@ -182,17 +182,24 @@ impl Boxes {
 pub fn combine_overlapping_rects(boxes: Vec<Boxes>) -> Vec<Boxes> {
     let mut combined_boxes: Vec<Boxes> = vec![];
 
+    let mut any_overlapping_box_found = false;
+
     for next_box in boxes {
         let mut overlapped = false;
         for aggregate_box in &mut combined_boxes {
             if next_box.overlaps(aggregate_box) {
                 *aggregate_box = aggregate_box.merge(&next_box);
                 overlapped = true;
+                any_overlapping_box_found = true;
             }
         }
         if !overlapped {
             combined_boxes.push(next_box);
         }
+    }
+    if any_overlapping_box_found {
+        //Rerun until no boxes are overlapping
+        return combine_overlapping_rects(combined_boxes);
     }
 
     combined_boxes
@@ -233,9 +240,7 @@ mod tests {
             .for_each(|(i, conf)| {
                 info!("Run {}", i);
                 let res_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
-                let output = res_dir
-                    .join("output")
-                    .join(format!("output_{conf:.2}.jpg"));
+                let output = res_dir.join("output").join(format!("output_{conf:.2}.jpg"));
                 let input_path = res_dir.join("input").join("input.jpg");
                 let mut original_img = image::open(input_path.as_path()).unwrap();
 
