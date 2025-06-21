@@ -9,7 +9,7 @@ use ::serde::{Deserialize, Serialize};
 
 use crate::detect::comictextdetector::{combine_overlapping_rects, Boxes, DETECT_STATE};
 use crate::jpn::{dict, get_jpn_data, JpnData};
-use crate::ocr::OcrBackend;
+use crate::ocr::{BackendResult, OcrBackend};
 use crate::translation::google::translate;
 use crate::{database, detect};
 
@@ -26,7 +26,7 @@ pub struct ScreenshotParameter {
     pub height: u32,
     pub detect_boxes: bool,
     pub full_capture_ocr: bool,
-    pub backends: Vec<OcrBackend>,
+    pub backend: OcrBackend,
     pub threshold: f32,
 }
 
@@ -34,7 +34,7 @@ pub async fn run_ocr(
     parameter: ScreenshotParameter,
     mut capture_image: DynamicImage,
 ) -> Result<ScreenshotResult, ()> {
-    let backends: Vec<OcrBackend> = parameter.backends;
+    let backend: OcrBackend = parameter.backend;
 
     //Detect Boxes
     let all_boxes: Vec<Boxes> = if parameter.detect_boxes {
@@ -60,7 +60,7 @@ pub async fn run_ocr(
 
     let image = capture_image.clone();
 
-    let cutout_results = run_ocr_on_cutout_images(&image, &backends, rects);
+    let cutout_results = run_ocr_on_cutout_images(&image, &backend, rects);
 
     let mut futures = vec![];
 
@@ -97,19 +97,16 @@ pub async fn run_ocr(
 
 fn run_ocr_on_cutout_images(
     capture_image: &DynamicImage,
-    backends: &[OcrBackend],
+    backend: &OcrBackend,
     rects: Vec<Rect>,
-) -> Vec<(String, Rect)> {
+) -> BackendResult {
     let cutout_images: Vec<DynamicImage> = rects
         .iter()
         .map(|x| get_cutout_image(capture_image, x))
         .filter(|x| x.width() != 0 && x.height() != 0)
         .collect();
 
-    OcrBackend::run_backends(&cutout_images, backends)
-        .into_iter()
-        .zip(rects)
-        .collect()
+    backend.run_backend(&cutout_images)
 }
 
 async fn get_result_data(ocr: String, rect: Rect) -> ResultData {
@@ -160,6 +157,7 @@ pub struct ResultData {
     pub ocr: String,
     pub translation: String,
     pub jpn: Vec<Vec<JpnData>>,
+    pub backend_result: Option<BackendResult>,
 }
 
 impl std::fmt::Debug for ResultData {

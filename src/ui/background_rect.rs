@@ -161,7 +161,7 @@ impl BackgroundRect {
             height: global_rect.height() as u32,
             detect_boxes: settings.detect_boxes,
             full_capture_ocr: !settings.detect_boxes,
-            backends: vec![MangaOcr],
+            backend: MangaOcr,
             threshold: settings.threshold,
         };
 

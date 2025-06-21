@@ -1,60 +1,43 @@
-use crate::ocr::manga_ocr::MANGA_OCR;
-use anyhow::Result;
+use crate::ocr::manga_ocr::{KanjiTopResults, MANGA_OCR};
+use crate::ocr::BackendResult::NoImages;
+use anyhow::{anyhow, Result};
 use image::DynamicImage;
 use serde::{Deserialize, Serialize};
 use strum::{EnumIter, EnumString};
 
 pub mod manga_ocr;
 
-#[derive(Debug, Clone, PartialEq, strum::Display, EnumString, EnumIter, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, PartialEq, strum::Display, EnumString, EnumIter, Serialize, Deserialize, Default,
+)]
 pub enum OcrBackend {
     #[strum(ascii_case_insensitive)]
+    #[default]
     MangaOcr,
 }
 
+pub enum BackendResult {
+    MangaOcr(Vec<KanjiTopResults>),
+    Error(anyhow::Error),
+}
+
 impl OcrBackend {
-    pub fn run_backends(images: &[DynamicImage], backends: &[OcrBackend]) -> Vec<String> {
-        let backend_count: usize = backends.len();
-
-        let backend_outputs: Vec<Vec<String>> = backends
-            .iter()
-            .map(|e| (e, e.run_ocr(&images)))
-            .map(|e| concat_backend_output(e.0, e.1, backend_count))
-            .collect();
-
-        let mut output: Vec<String> = vec![];
-        for (i, backend_output) in backend_outputs.iter().enumerate() {
-            if i == 0 {
-                output.clone_from(backend_output);
-            } else {
-                output = output
-                    .into_iter()
-                    .zip(backend_output.iter())
-                    .map(|x| [x.0, x.1.to_string()].join("\n\n").trim().to_string())
-                    .collect();
-            }
-        }
-
-        output
-    }
-
-    pub fn run_ocr(&self, images: &[DynamicImage]) -> Result<Vec<String>> {
-        if images.is_empty() {
-            return Ok(vec![]);
-        }
-
+    pub fn run_backend(&self, images: &[DynamicImage]) -> BackendResult {
         match self {
-            OcrBackend::MangaOcr => Ok(run_manga_ocr(images)),
+            OcrBackend::MangaOcr => run_manga_ocr(images),
         }
     }
 }
 
-fn run_manga_ocr(images: &[DynamicImage]) -> Vec<String> {
+fn run_manga_ocr(images: &[DynamicImage]) -> BackendResult {
     let model = MANGA_OCR.lock().unwrap();
     if let Ok(model) = model.as_ref() {
-        return model.inference(images).unwrap();
+        let result = model.inference(images);
+
+        BackendResult::MangaOcr(result)
+    } else {
+        BackendResult::Error(anyhow!("MangaOCR model not found"))
     }
-    vec![]
 }
 
 fn concat_backend_output(
@@ -165,7 +148,7 @@ mod tests {
         let run_ocr: ScreenshotResult = run_ocr(
             ScreenshotParameter {
                 detect_boxes: true,
-                backends: vec![OcrBackend::MangaOcr],
+                backend: OcrBackend::MangaOcr,
                 ..ScreenshotParameter::default()
             },
             image,

@@ -18,6 +18,53 @@ pub struct MangaOCR {
     vocab: Vec<String>,
 }
 
+#[derive(Debug, Clone)]
+pub struct KanjiConf {
+    kanji: String,
+    confidence: f32,
+}
+
+#[derive(Clone)]
+pub struct TokenConf {
+    pub token_id: i64,
+    pub confidence: f32,
+}
+
+impl TokenConf {
+    fn convert(&self, vocab: &Vec<String>) -> Option<KanjiConf> {
+        let kanji = vocab.get(self.token_id as usize).cloned()?;
+        Some(KanjiConf {
+            kanji,
+            confidence: self.confidence,
+        })
+    }
+}
+
+//Batchsize, Sequenz, Top 10
+pub type TokenConfVec = Vec<Vec<Vec<TokenConf>>>;
+
+pub type KanjiResult = Vec<KanjiConf>;
+
+pub type KanjiTopResults = Vec<KanjiResult>;
+
+pub fn get_kanji_top_text_with_conf(result: &KanjiTopResults, top: usize) -> Option<String> {
+    let ocr = result
+        .iter()
+        .flat_map(|x| x.get(top))
+        .map(|x| format!("{}({:.2})", x.kanji.clone(), x.confidence))
+        .join("");
+    Some(ocr)
+}
+
+pub fn get_kanji_top_text(result: &KanjiTopResults, top: usize) -> Option<String> {
+    let ocr = result
+        .iter()
+        .flat_map(|x| x.get(top))
+        .map(|x| x.kanji.clone())
+        .join("");
+    Some(ocr)
+}
+
 impl MangaOCR {
     pub fn new() -> anyhow::Result<Self> {
         let api = Api::new()?;
@@ -38,45 +85,53 @@ impl MangaOCR {
         Ok(Self { model, vocab })
     }
 
-    pub fn inference(&self, images: &[DynamicImage]) -> anyhow::Result<Vec<String>> {
+    pub fn inference(&self, images: &[DynamicImage]) -> Vec<KanjiTopResults> {
         if images.is_empty() {
-            return Ok(vec![]);
+            return vec![];
         }
 
         let batch_size = images.len();
         let tensor = Self::create_image_tensor(images);
 
-        let token_ids = self.get_token_ids(batch_size, tensor)?;
+        let token_ids = self.get_token_ids(batch_size, tensor);
 
-        let texts = token_ids.iter().map(|x| self.decode_tokens(x)).collect();
-        Ok(texts)
+        self.decode_tokens(&token_ids)
     }
 
-
-    fn decode_tokens(&self, token_ids: &Vec<i64>) -> String {
-        let text = token_ids
+    fn decode_tokens(&self, token_ids: &TokenConfVec) -> Vec<KanjiTopResults> {
+        token_ids
             .iter()
-            .filter(|&&id| id >= 5)
-            .filter_map(|&id| self.vocab.get(id as usize).cloned())
-            .collect::<Vec<_>>();
-
-        text.join("")
+            .map(|outer| {
+                outer
+                    .iter()
+                    .map(|middle| {
+                        middle
+                            .iter()
+                            .filter(|token| token.token_id >= 5)
+                            .filter_map(|token| token.convert(&self.vocab))
+                            .collect()
+                    })
+                    .collect()
+            })
+            .collect()
     }
 
     fn get_token_ids(
         &self,
         batch_size: usize,
         tensor: ArrayBase<OwnedRepr<f32>, Dim<[Ix; 4]>>,
-    ) -> anyhow::Result<Vec<Vec<i64>>> {
+    ) -> TokenConfVec {
         let mut done_state: Vec<bool> = vec![false; batch_size];
         let mut token_ids: Vec<Vec<i64>> = vec![vec![2i64]; batch_size]; // Start token
 
-        'outer: for _ in 0..300 {
+        let mut token_confs: TokenConfVec = vec![Vec::new(); batch_size];
+
+        'outer: for run in 0..300 {
             // Create input tensors
-            let input = ndarray::Array::from_shape_vec(
-                (batch_size, token_ids[0].len()),
-                token_ids.iter().flatten().cloned().collect(),
-            )?;
+            let input_token_ids = token_ids.iter().flatten().cloned().collect();
+            let input =
+                ndarray::Array::from_shape_vec((batch_size, token_ids[0].len()), input_token_ids)
+                    .expect("Input Shape is invalid");
             let inputs = inputs! {
                 "image" => tensor.view(),
                 "token_ids" => input,
@@ -99,29 +154,46 @@ impl MangaOCR {
 
                 let last_token_logits = logits_view.slice(s![i, -1, ..]);
 
-                let (token_id, _) = last_token_logits
+                let top_ten: Vec<TokenConf> = last_token_logits
                     .iter()
                     .enumerate()
-                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
-                    .unwrap_or((0, &0.0));
+                    .map(|(id, &conf)| TokenConf {
+                        token_id: id as i64,
+                        confidence: conf,
+                    })
+                    .sorted_by(|a, b| b.confidence.partial_cmp(&a.confidence).unwrap())
+                    .take(10)
+                    .collect();
 
-                token_ids[i].push(token_id as i64);
+                let token_id = top_ten[0].token_id;
+
+                token_ids[i].push(token_id);
+
+                if run > 0 {
+                    token_confs[i].push(top_ten);
+                }
 
                 // Break if end token
-                if token_id as i64 == 3 {
+                if token_id == 3 {
                     done_state[i] = true;
-
-                    if done_state.iter().all(|&x| x) {
-                        break 'outer;
-                    }
                 }
             }
+
+            if done_state.iter().all(|&x| x) {
+                token_confs.iter_mut().for_each(|x| {
+                    x.pop();
+                });
+                break 'outer;
+            }
         }
-        Ok(token_ids)
+        token_confs
     }
 
     fn create_image_tensor(images: &[DynamicImage]) -> Array4<f32> {
-        let arrays = images.iter().map(|x| Self::fast_image_to_ndarray(x)).collect_vec();
+        let arrays = images
+            .iter()
+            .map(|x| Self::fast_image_to_ndarray(x))
+            .collect_vec();
         let stack = Self::join_arrays_stack(&arrays);
 
         stack
@@ -134,15 +206,50 @@ impl MangaOCR {
         let (width, height) = img.dimensions();
         let raw_buf = img.as_raw();
 
-        let array = Array3::from_shape_vec((height as usize, width as usize, 3),
-                                           raw_buf.iter().map(|&x| x as f32).collect())
-            .unwrap().div(255.0).sub(0.5).div(0.5);
+        let array = Array3::from_shape_vec(
+            (height as usize, width as usize, 3),
+            raw_buf.iter().map(|&x| x as f32).collect(),
+        )
+        .unwrap()
+        .div(255.0)
+        .sub(0.5)
+        .div(0.5);
 
         array
     }
 
     fn join_arrays_stack(arrays: &[Array3<f32>]) -> Array4<f32> {
-        let views: Vec<_> = arrays.iter().map(|a| a.view().permuted_axes([2, 0, 1])).collect();
+        let views: Vec<_> = arrays
+            .iter()
+            .map(|a| a.view().permuted_axes([2, 0, 1]))
+            .collect();
         stack(Axis(0), &views).unwrap()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::Path;
+
+    #[test]
+    fn test() {
+        let res_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let input_path = res_dir.join("input").join("input_rect.jpg");
+        let mut original_img = image::open(input_path.as_path()).unwrap();
+        let images = [original_img];
+
+        let model = MANGA_OCR.lock().unwrap();
+        if let Ok(model) = model.as_ref() {
+            let result = model.inference(&images);
+
+            for data in result.iter() {
+                for i in 0..10 {
+                    let text = get_kanji_top_text_with_conf(data, i)
+                        .unwrap_or("<no_kanji_top_text>".to_string());
+                    println!("{}: {:#?}", i, text);
+                }
+            }
+        }
     }
 }
