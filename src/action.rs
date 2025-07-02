@@ -18,7 +18,7 @@ pub fn open_workdir() {
     that(current_dir).expect("Failed to open current_dir");
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Default)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Default, Clone)]
 pub struct ScreenshotParameter {
     pub x: i32,
     pub y: i32,

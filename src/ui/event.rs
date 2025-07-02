@@ -1,7 +1,8 @@
 use crate::action::ScreenshotResult;
 use crate::database::{HistoryData, KanjiStatistic};
 use crate::jpn::JpnData;
-use crate::ui::settings::{Backend, BackendStatus};
+use crate::ui::background_rect::BackgroundRect;
+use crate::ui::settings::{AppSettings, Backend, BackendStatus};
 use crate::OcrApp;
 use eframe::epaint::textures::TextureOptions;
 use eframe::epaint::ColorImage;
@@ -20,6 +21,7 @@ pub enum Event {
     UpdateSelectedJpnData(JpnData),
     UpdateBackendStatus(Backend, BackendStatus),
     ResetUi,
+    ResetStartOcrAt,
 }
 
 pub trait EventHandler {
@@ -66,9 +68,7 @@ impl EventHandler for Context {
                 let settings = &state.settings;
                 if settings.auto_restart_ocr {
                     //Restart OCR
-                    background_rect.start_ocr_at = Some(
-                        Instant::now().add(Duration::from_millis(settings.auto_restart_delay_ms)),
-                    );
+                    restart_ocr(background_rect, settings);
                 }
 
                 background_rect.screenshot_result = result;
@@ -107,8 +107,16 @@ impl EventHandler for Context {
                 *state = OcrApp::default();
                 OcrApp::init_backends(self);
             }
+            Event::ResetStartOcrAt => {
+                restart_ocr(&mut state.background_rect, &state.settings);
+            }
         }
     }
+}
+
+fn restart_ocr(background_rect: &mut BackgroundRect, settings: &AppSettings) {
+    background_rect.start_ocr_at =
+        Some(Instant::now().add(Duration::from_millis(settings.auto_restart_delay_ms)));
 }
 
 fn create_texture(

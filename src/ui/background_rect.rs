@@ -1,12 +1,13 @@
 use super::{mouse_hover::get_frame_rect, screenshot_result_ui::scale_rect, settings::AppSettings};
 use crate::action::{run_ocr, ScreenshotParameter, ScreenshotResult};
 use crate::ocr::OcrBackend::MangaOcr;
-use crate::ui::event::Event::{UpdateBackendStatus, UpdateScreenshotResult};
+use crate::ui::event::Event::{ResetStartOcrAt, UpdateBackendStatus, UpdateScreenshotResult};
 use crate::ui::event::EventHandler;
 use crate::ui::settings::{Backend, BackendStatus};
 use crate::ui::shutdown::TASK_TRACKER;
 use eframe::epaint::StrokeKind;
 use egui::{Color32, Context, Id, Pos2, Rect, Sense, TextureHandle, Vec2};
+use image::DynamicImage;
 use log::{debug, warn};
 use std::time::Duration;
 use tokio::time::Instant;
@@ -150,7 +151,7 @@ impl BackgroundRect {
         rect
     }
 
-    fn start_ocr(&self, ctx: &egui::Context, settings: &AppSettings) {
+    fn start_ocr(&self, ctx: &Context, settings: &AppSettings) {
         let global_rect = self.get_global_rect(ctx);
 
         let screenshot_parameter = ScreenshotParameter {
@@ -168,6 +169,11 @@ impl BackgroundRect {
             warn!("screenshot_parameter get screenshot failed");
             return;
         };
+
+        if are_inputs_unchanged(&ctx, screenshot_parameter.clone(), image.clone()) {
+            ctx.emit(ResetStartOcrAt);
+            return;
+        }
 
         ctx.data_mut(|x| x.insert_temp(Id::new("ocr_is_cancelled"), false));
 
@@ -213,4 +219,34 @@ impl BackgroundRect {
                 );
             })
     }
+}
+
+fn are_inputs_unchanged(
+    ctx: &Context,
+    parameter: ScreenshotParameter,
+    image: DynamicImage,
+) -> bool {
+    let param_id = Id::new("last_parameter");
+    let image_id = Id::new("last_image");
+
+    // Check if both parameter and image are unchanged
+    let unchanged = ctx.data_mut(|x| {
+        if let Some(last_parameter) = x.remove_temp::<ScreenshotParameter>(param_id)
+            && last_parameter == parameter
+            && let Some(last_image) = x.remove_temp::<DynamicImage>(image_id)
+            && last_image.eq(&image)
+        {
+            true
+        } else {
+            false
+        }
+    });
+
+    // Store current parameter and image for next comparison
+    ctx.data_mut(|x| {
+        x.insert_temp(param_id, parameter);
+        x.insert_temp(image_id, image);
+    });
+
+    unchanged
 }
