@@ -3,9 +3,8 @@ use super::kanji_history_ui::{init_history_updater, HistoryDataUi};
 use super::kanji_statistic_ui::{init_kanji_statistic_updater, KanjiStatisticUi};
 use super::settings::{AppSettings, Backend, BackendStatus};
 use crate::detect::comictextdetector::DETECT_STATE;
+use crate::event::event::{emit_event, get_events, Event};
 use crate::ocr::manga_ocr::MANGA_OCR;
-use crate::ui::event::Event::UpdateBackendStatus;
-use crate::ui::event::EventHandler;
 use crate::ui::shutdown::{shutdown_tasks, TASK_TRACKER};
 use egui::Context;
 use futures::join;
@@ -37,22 +36,21 @@ impl OcrApp {
             Default::default()
         };
 
-        init_history_updater(cc.egui_ctx.clone());
-        init_kanji_statistic_updater(cc.egui_ctx.clone());
+        init_history_updater();
+        init_kanji_statistic_updater();
 
-        Self::init_backends(&cc.egui_ctx);
+        Self::init_backends();
 
         ocr_app
     }
 
-    pub fn init_backends(ctx: &Context) {
-        let ctx1 = ctx.clone();
+    pub fn init_backends() {
         TASK_TRACKER.spawn(async move {
             let init1 = TASK_TRACKER.spawn(async { LazyLock::force(&MANGA_OCR) });
             let init2 = TASK_TRACKER.spawn(async { LazyLock::force(&DETECT_STATE) });
             let (result1, result2) = join!(init1, init2);
 
-            ctx1.emit(UpdateBackendStatus(
+            emit_event(Event::UpdateBackendStatus(
                 Backend::MangaOcr,
                 if result1.is_ok() && result2.is_ok() {
                     BackendStatus::Ready
@@ -91,7 +89,9 @@ impl OcrApp {
 impl eframe::App for OcrApp {
     /// Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
-        ctx.update_state(self);
+        for event in get_events() {
+            event.handle_event(ctx, self);
+        }
 
         ctx.set_zoom_factor(self.settings.zoom_factor);
 

@@ -1,8 +1,9 @@
 use super::background_rect::start_ocr_id;
 use crate::action::open_workdir;
-use crate::ui::event::Event::ResetUi;
-use crate::ui::event::EventHandler;
-use egui::{Button, CollapsingHeader, Color32, Id, RichText, Spinner};
+use crate::event::event::{emit_event, Event};
+use crate::ui::image_display::{ImageDisplay, ImageDisplayType};
+use egui::{Button, CollapsingHeader, Color32, Id, RichText, Spinner, Ui};
+use strum::IntoEnumIterator;
 
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)]
@@ -21,11 +22,13 @@ pub struct AppSettings {
 
     pub show_statistics: bool,
     pub show_history: bool,
-    pub show_capture_image: bool,
-    pub show_debug_image: bool,
     pub threshold: f32,
 
     pub show_debug_cursor: bool,
+
+    pub capture_image: ImageDisplay,
+    pub debug_image: ImageDisplay,
+    pub filtered_image: ImageDisplay,
 }
 
 impl Default for AppSettings {
@@ -41,10 +44,11 @@ impl Default for AppSettings {
             hover_delay_ms: 1000,
             show_statistics: false,
             show_history: false,
-            show_capture_image: false,
-            show_debug_image: false,
             threshold: 0.5,
             show_debug_cursor: false,
+            capture_image: ImageDisplay::default(),
+            debug_image: ImageDisplay::default(),
+            filtered_image: ImageDisplay::default(),
         }
     }
 }
@@ -145,14 +149,23 @@ impl AppSettings {
                 ui.color_edit_button_srgba(&mut self.clear_color);
             });
 
-            ui.checkbox(&mut self.show_capture_image, "Show Capture Image");
-            ui.checkbox(&mut self.show_debug_image, "Show Debug Image");
+            for x in ImageDisplayType::iter() {
+                self.show_image_checkbox(ui, x);
+            }
+
             ui.checkbox(&mut self.show_debug_cursor, "Show Debug Cursor");
 
             if ui.button("Reset UI").clicked() {
-                ui.ctx().emit(ResetUi);
+                emit_event(Event::ResetUi);
             }
         });
+    }
+
+    fn show_image_checkbox(&mut self, ui: &mut Ui, image_display_type: ImageDisplayType) {
+        ui.checkbox(
+            &mut image_display_type.get_image_display(self).visible,
+            format!("Show {}", image_display_type.get_title()),
+        );
     }
 }
 
@@ -176,7 +189,7 @@ impl BackendStatus {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Backend {
     MangaOcr,
 }

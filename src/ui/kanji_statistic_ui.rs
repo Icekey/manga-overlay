@@ -5,8 +5,8 @@ use egui_extras::{Column, TableBuilder};
 use tokio::time::sleep;
 
 use super::screenshot_result_ui::show_jpn_data_info;
-use crate::ui::event::Event::{UpdateKanjiStatistic, UpdateSelectedJpnData};
-use crate::ui::event::EventHandler;
+use crate::event::event::emit_event;
+use crate::event::event::Event::{UpdateKanjiStatistic, UpdateSelectedJpnData};
 use crate::ui::shutdown::TASK_TRACKER;
 use crate::{action, database::KanjiStatistic, jpn::JpnData};
 
@@ -18,12 +18,12 @@ pub struct KanjiStatisticUi {
     pub selected_jpn_data: JpnData,
 }
 
-pub fn init_kanji_statistic_updater(ctx: Context) {
+pub fn init_kanji_statistic_updater() {
     TASK_TRACKER.spawn(async move {
         loop {
             let kanji_statistic = action::load_statistic();
 
-            ctx.emit(UpdateKanjiStatistic(kanji_statistic));
+            emit_event(UpdateKanjiStatistic(kanji_statistic));
             sleep(Duration::from_secs(1)).await;
         }
     });
@@ -81,14 +81,13 @@ impl KanjiStatisticUi {
             });
     }
 
-    pub(crate) fn update_selected_kanji_statistic(&mut self, index: usize, ctx: &Context) {
+    pub(crate) fn update_selected_kanji_statistic(&mut self, index: usize, _ctx: &Context) {
         self.selected_kanji_index = Some(index);
         if let Some(kanji_statistic) = self.kanji_statistic.get(index) {
             let kanji = kanji_statistic.kanji.clone();
-            let ctx = ctx.clone();
             TASK_TRACKER.spawn(async move {
                 if let Some(jpn_data) = action::get_kanji_jpn_data(&kanji).await {
-                    ctx.emit(UpdateSelectedJpnData(jpn_data));
+                    emit_event(UpdateSelectedJpnData(jpn_data));
                 };
             });
         }

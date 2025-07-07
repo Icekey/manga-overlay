@@ -1,6 +1,6 @@
 pub mod app;
 pub mod background_rect;
-pub mod event;
+pub mod image_display;
 pub mod kanji_history_ui;
 pub mod kanji_statistic_ui;
 pub mod mouse_hover;

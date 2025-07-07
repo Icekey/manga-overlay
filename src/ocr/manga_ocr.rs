@@ -4,6 +4,7 @@ use image::DynamicImage;
 use itertools::Itertools;
 use ndarray::{s, stack, Array3, Array4, ArrayBase, Axis, Dim, Ix, OwnedRepr};
 use ort::{inputs, session::Session};
+use serde::{Deserialize, Serialize};
 use std::ops::{Div, Sub};
 use std::sync::{Arc, LazyLock, Mutex};
 
@@ -18,13 +19,34 @@ pub struct MangaOCR {
     vocab: Vec<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Deserialize, Serialize, Default, Clone, Debug, PartialEq)]
 pub struct KanjiConf {
-    kanji: String,
-    confidence: f32,
+    pub kanji: String,
+    pub confidence: f32,
 }
 
-#[derive(Clone)]
+impl KanjiConf {
+    pub fn get_ocr(vec: &[Self]) -> String {
+        vec.iter().map(|x| x.kanji.clone()).join("")
+    }
+
+    pub fn get_conf_matrix(vec: &Vec<Vec<Self>>) -> String {
+        vec.iter()
+            .map(|x| {
+                x.iter()
+                    .map(
+                        |KanjiConf {
+                             kanji,
+                             confidence: _,
+                         }| format!("{kanji}"),
+                    )
+                    .join("")
+            })
+            .join(" | ")
+    }
+}
+
+#[derive(Deserialize, Serialize, Default, Clone, Debug, PartialEq)]
 pub struct TokenConf {
     pub token_id: i64,
     pub confidence: f32,
@@ -33,6 +55,11 @@ pub struct TokenConf {
 impl TokenConf {
     fn convert(&self, vocab: &Vec<String>) -> Option<KanjiConf> {
         let kanji = vocab.get(self.token_id as usize).cloned()?;
+
+        if kanji.is_empty() {
+            return None;
+        }
+
         Some(KanjiConf {
             kanji,
             confidence: self.confidence,
@@ -47,15 +74,6 @@ pub type KanjiResult = Vec<KanjiConf>;
 
 pub type KanjiTopResults = Vec<KanjiResult>;
 
-pub fn get_kanji_top_text_with_conf(result: &KanjiTopResults, top: usize) -> Option<String> {
-    let ocr = result
-        .iter()
-        .flat_map(|x| x.get(top))
-        .map(|x| format!("{}({:.2})", x.kanji.clone(), x.confidence))
-        .join("");
-    Some(ocr)
-}
-
 pub fn get_kanji_top_text(result: &KanjiTopResults, top: usize) -> Option<String> {
     let ocr = result
         .iter()
@@ -64,6 +82,8 @@ pub fn get_kanji_top_text(result: &KanjiTopResults, top: usize) -> Option<String
         .join("");
     Some(ocr)
 }
+
+const MAX_TOP_KANJI: usize = 20;
 
 impl MangaOCR {
     pub fn new() -> anyhow::Result<Self> {
@@ -93,7 +113,7 @@ impl MangaOCR {
         let batch_size = images.len();
         let tensor = Self::create_image_tensor(images);
 
-        let token_ids = self.get_token_ids(batch_size, tensor);
+        let token_ids = self.get_token_ids(batch_size, tensor).unwrap_or_default();
 
         self.decode_tokens(&token_ids)
     }
@@ -101,18 +121,24 @@ impl MangaOCR {
     fn decode_tokens(&self, token_ids: &TokenConfVec) -> Vec<KanjiTopResults> {
         token_ids
             .iter()
-            .map(|outer| {
-                outer
-                    .iter()
-                    .map(|middle| {
-                        middle
-                            .iter()
-                            .filter(|token| token.token_id >= 5)
-                            .filter_map(|token| token.convert(&self.vocab))
-                            .collect()
-                    })
-                    .collect()
-            })
+            .map(|outer| self.get_test(outer))
+            .filter(|x: &KanjiTopResults| !x.is_empty())
+            .collect()
+    }
+
+    fn get_test(&self, outer: &Vec<Vec<TokenConf>>) -> KanjiTopResults {
+        outer
+            .iter()
+            .map(|middle| self.convert(middle))
+            .filter(|x: &KanjiResult| !x.is_empty())
+            .collect()
+    }
+
+    fn convert(&self, middle: &[TokenConf]) -> KanjiResult {
+        middle
+            .iter()
+            .filter(|token| token.token_id >= 5)
+            .filter_map(|token| token.convert(&self.vocab))
             .collect()
     }
 
@@ -120,7 +146,7 @@ impl MangaOCR {
         &self,
         batch_size: usize,
         tensor: ArrayBase<OwnedRepr<f32>, Dim<[Ix; 4]>>,
-    ) -> TokenConfVec {
+    ) -> anyhow::Result<TokenConfVec> {
         let mut done_state: Vec<bool> = vec![false; batch_size];
         let mut token_ids: Vec<Vec<i64>> = vec![vec![2i64]; batch_size]; // Start token
 
@@ -162,7 +188,7 @@ impl MangaOCR {
                         confidence: conf,
                     })
                     .sorted_by(|a, b| b.confidence.partial_cmp(&a.confidence).unwrap())
-                    .take(10)
+                    .take(MAX_TOP_KANJI)
                     .collect();
 
                 let token_id = top_ten[0].token_id;
@@ -186,7 +212,7 @@ impl MangaOCR {
                 break 'outer;
             }
         }
-        token_confs
+        Ok(token_confs)
     }
 
     fn create_image_tensor(images: &[DynamicImage]) -> Array4<f32> {
@@ -251,5 +277,14 @@ mod tests {
                 }
             }
         }
+    }
+
+    pub fn get_kanji_top_text_with_conf(result: &KanjiTopResults, top: usize) -> Option<String> {
+        let ocr = result
+            .iter()
+            .flat_map(|x| x.get(top))
+            .map(|x| format!("{}({:.2})", x.kanji.clone(), x.confidence))
+            .join("");
+        Some(ocr)
     }
 }

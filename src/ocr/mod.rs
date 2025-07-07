@@ -1,6 +1,5 @@
 use crate::ocr::manga_ocr::{KanjiTopResults, MANGA_OCR};
-use crate::ocr::BackendResult::NoImages;
-use anyhow::{anyhow, Result};
+use anyhow::{bail, Result};
 use image::DynamicImage;
 use serde::{Deserialize, Serialize};
 use strum::{EnumIter, EnumString};
@@ -16,46 +15,28 @@ pub enum OcrBackend {
     MangaOcr,
 }
 
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
 pub enum BackendResult {
-    MangaOcr(Vec<KanjiTopResults>),
-    Error(anyhow::Error),
+    MangaOcr(KanjiTopResults),
 }
 
 impl OcrBackend {
-    pub fn run_backend(&self, images: &[DynamicImage]) -> BackendResult {
+    pub fn run_backend(&self, images: &[DynamicImage]) -> Result<Vec<BackendResult>> {
         match self {
             OcrBackend::MangaOcr => run_manga_ocr(images),
         }
     }
 }
 
-fn run_manga_ocr(images: &[DynamicImage]) -> BackendResult {
+fn run_manga_ocr(images: &[DynamicImage]) -> Result<Vec<BackendResult>> {
     let model = MANGA_OCR.lock().unwrap();
     if let Ok(model) = model.as_ref() {
         let result = model.inference(images);
+        let result = result.into_iter().map(BackendResult::MangaOcr).collect();
 
-        BackendResult::MangaOcr(result)
-    } else {
-        BackendResult::Error(anyhow!("MangaOCR model not found"))
+        return Ok(result);
     }
-}
-
-fn concat_backend_output(
-    backend: &OcrBackend,
-    output: Result<Vec<String>>,
-    backend_count: usize,
-) -> Vec<String> {
-    let outputs = output.unwrap_or_else(|e| vec![e.to_string()]);
-    outputs
-        .into_iter()
-        .map(|x| {
-            if backend_count > 1 {
-                [backend.to_string(), x].join("\n")
-            } else {
-                x
-            }
-        })
-        .collect()
+    bail!("MangaOCR model not found")
 }
 
 #[cfg(test)]

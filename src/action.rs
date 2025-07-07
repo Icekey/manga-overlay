@@ -1,4 +1,12 @@
 use crate::database::{HistoryData, KanjiStatistic};
+use crate::detect::comictextdetector::{combine_overlapping_rects, Boxes, DETECT_STATE};
+use crate::event::event::{emit_event, Event};
+use crate::jpn::{dict, get_jpn_data, JpnData};
+use crate::ocr::manga_ocr::get_kanji_top_text;
+use crate::ocr::{BackendResult, OcrBackend};
+use crate::translation::google::translate;
+use crate::ui::image_display::ImageDisplayType::{CAPTURE, DEBUG, PREPROCESSED};
+use crate::{database, detect};
 use futures::future::join_all;
 use image::DynamicImage;
 use imageproc::rect::Rect;
@@ -6,12 +14,6 @@ use itertools::Itertools;
 use log::info;
 use open::that;
 use ::serde::{Deserialize, Serialize};
-
-use crate::detect::comictextdetector::{combine_overlapping_rects, Boxes, DETECT_STATE};
-use crate::jpn::{dict, get_jpn_data, JpnData};
-use crate::ocr::{BackendResult, OcrBackend};
-use crate::translation::google::translate;
-use crate::{database, detect};
 
 pub fn open_workdir() {
     let current_dir = std::env::current_dir().expect("Failed to get current_dir");
@@ -33,7 +35,7 @@ pub struct ScreenshotParameter {
 pub async fn run_ocr(
     parameter: ScreenshotParameter,
     mut capture_image: DynamicImage,
-) -> Result<ScreenshotResult, ()> {
+) -> anyhow::Result<ScreenshotResult> {
     let backend: OcrBackend = parameter.backend;
 
     //Detect Boxes
@@ -60,12 +62,18 @@ pub async fn run_ocr(
 
     let image = capture_image.clone();
 
-    let cutout_results = run_ocr_on_cutout_images(&image, &backend, rects);
+    let cutout_results: Vec<(Rect, BackendResult)> =
+        run_ocr_on_cutout_images(&image, &backend, rects)?;
 
     let mut futures = vec![];
 
-    for cutout_result in cutout_results {
-        futures.push(get_result_data(cutout_result.0, cutout_result.1));
+    for (rect, result) in cutout_results {
+        let ocr = match &result {
+            BackendResult::MangaOcr(top_results) => get_kanji_top_text(&top_results, 1),
+        };
+        if let Some(x) = ocr {
+            futures.push(get_result_data(x, rect, result))
+        }
     }
 
     let ocr_results: Vec<ResultData> = join_all(futures).await.into_iter().collect();
@@ -88,28 +96,44 @@ pub async fn run_ocr(
     let mut debug_image = capture_image.clone();
     detect::comictextdetector::draw_rects(&mut debug_image, &all_boxes);
 
-    Ok(ScreenshotResult {
-        capture_image: Some(capture_image),
-        debug_image: Some(debug_image),
-        ocr_results,
-    })
+    emit_event(Event::UpdateImageDisplay(CAPTURE, Some(capture_image)));
+    emit_event(Event::UpdateImageDisplay(DEBUG, Some(debug_image)));
+
+    Ok(ScreenshotResult { ocr_results })
 }
 
 fn run_ocr_on_cutout_images(
     capture_image: &DynamicImage,
     backend: &OcrBackend,
     rects: Vec<Rect>,
-) -> BackendResult {
+) -> anyhow::Result<Vec<(Rect, BackendResult)>> {
+    let preprocess_image = preprocess_image(capture_image);
+
     let cutout_images: Vec<DynamicImage> = rects
         .iter()
-        .map(|x| get_cutout_image(capture_image, x))
+        .map(|x| get_cutout_image(&capture_image, x))
         .filter(|x| x.width() != 0 && x.height() != 0)
         .collect();
 
-    backend.run_backend(&cutout_images)
+    let result: Vec<BackendResult> = backend.run_backend(&cutout_images)?;
+
+    let result: Vec<(Rect, BackendResult)> = rects.into_iter().zip(result).collect();
+
+    emit_event(Event::UpdateImageDisplay(
+        PREPROCESSED,
+        Some(preprocess_image),
+    ));
+
+    Ok(result)
 }
 
-async fn get_result_data(ocr: String, rect: Rect) -> ResultData {
+fn preprocess_image(image: &DynamicImage) -> DynamicImage {
+    let filtered = imageproc::filter::sharpen_gaussian(&image.grayscale().to_luma8(), 5., 10.);
+
+    filtered.into()
+}
+
+async fn get_result_data(ocr: String, rect: Rect, result: BackendResult) -> ResultData {
     let jpn: Vec<Vec<JpnData>> = get_jpn_data(&ocr).await;
 
     let translation = match database::load_history_data(&ocr) {
@@ -125,6 +149,7 @@ async fn get_result_data(ocr: String, rect: Rect) -> ResultData {
         ocr,
         translation,
         jpn,
+        backend_result: Some(result),
     }
 }
 
@@ -137,17 +162,13 @@ fn get_cutout_image(capture_image: &DynamicImage, rect: &Rect) -> DynamicImage {
     )
 }
 
-#[derive(Deserialize, Serialize, Default, Clone, Debug)]
+#[derive(Deserialize, Serialize, Default, Clone, Debug, PartialEq)]
 #[serde(default)]
 pub struct ScreenshotResult {
-    #[serde(skip)]
-    pub capture_image: Option<DynamicImage>,
-    #[serde(skip)]
-    pub debug_image: Option<DynamicImage>,
     pub ocr_results: Vec<ResultData>,
 }
 
-#[derive(Deserialize, Serialize, Default, Clone)]
+#[derive(Deserialize, Serialize, Default, Clone, PartialEq)]
 #[serde(default)]
 pub struct ResultData {
     pub x: i32,
@@ -239,22 +260,64 @@ pub async fn get_kanji_jpn_data(kanji: &str) -> Option<JpnData> {
 
 #[cfg(test)]
 mod tests {
+    use crate::action::{run_ocr, ScreenshotParameter};
+    use crate::ocr::manga_ocr::KanjiConf;
+    use crate::ocr::{BackendResult, OcrBackend};
+    use image::DynamicImage;
+    use std::path::Path;
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_name() {
         //load DynamicImage
-        // let image = image::open("../input/input.jpg").expect("Failed to open image");
-        // let run_ocr = run_ocr(
-        //     ScreenshotParameter {
-        //         detect_boxes: true,
-        //         backends: vec![OcrBackend::MangaOcr],
-        //         ..ScreenshotParameter::default()
-        //     },
-        //     image,
-        // )
-        // .await;
+        let path = Path::new("./input/blurry.png");
+        dbg!(&path.canonicalize().unwrap());
+        let image = image::open(path).expect("Failed to open image");
+
+        // let filtered =
+        //     imageproc::filter::bilateral_filter(&image.grayscale().to_luma8(), 5, 5., 5.);
+
+        let filtered = imageproc::filter::sharpen_gaussian(&image.grayscale().to_luma8(), 5., 10.);
+        let _ = filtered
+            .clone()
+            .save(Path::new("./input/blurry_filtered.png"));
+
+        let run_ocr = run_ocr(
+            ScreenshotParameter {
+                detect_boxes: true,
+                threshold: 0.08,
+                backend: OcrBackend::MangaOcr,
+                ..ScreenshotParameter::default()
+            },
+            DynamicImage::ImageLuma8(filtered),
+        )
+        .await
+        .unwrap();
+
+        for result in &run_ocr.ocr_results {
+            if let Some(result) = &result.backend_result {
+                match result {
+                    BackendResult::MangaOcr(x) => {
+                        for i in 0..x.len() {
+                            let option = x.get(i).unwrap();
+                            let ocr = KanjiConf::get_ocr(option);
+
+                            dbg!(i, &ocr);
+                        }
+                    }
+                }
+            }
+        }
+
+        for result in &run_ocr.ocr_results {
+            if let Some(result) = &result.backend_result {
+                match result {
+                    BackendResult::MangaOcr(x) => {
+                        dbg!(KanjiConf::get_conf_matrix(&x));
+                    }
+                }
+            }
+        }
 
         // dbg!(run_ocr);
-        assert!(true);
     }
 }

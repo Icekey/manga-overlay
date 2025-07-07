@@ -20,6 +20,7 @@ use screenshots::Screen;
 pub(crate) mod action;
 pub(crate) mod database;
 pub(crate) mod detect;
+pub(crate) mod event;
 pub(crate) mod jpn;
 pub(crate) mod ocr;
 pub(crate) mod translation;

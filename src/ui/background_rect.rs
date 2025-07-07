@@ -1,14 +1,14 @@
 use super::{mouse_hover::get_frame_rect, screenshot_result_ui::scale_rect, settings::AppSettings};
 use crate::action::{run_ocr, ScreenshotParameter, ScreenshotResult};
+use crate::event::event::{emit_event, Event};
 use crate::ocr::OcrBackend::MangaOcr;
-use crate::ui::event::Event::{ResetStartOcrAt, UpdateBackendStatus, UpdateScreenshotResult};
-use crate::ui::event::EventHandler;
+use crate::ui::image_display::ImageDisplayType;
 use crate::ui::settings::{Backend, BackendStatus};
 use crate::ui::shutdown::TASK_TRACKER;
 use eframe::epaint::StrokeKind;
-use egui::{Color32, Context, Id, Pos2, Rect, Sense, TextureHandle, Vec2};
+use egui::{Color32, Context, Id, Pos2, Rect, Sense, Vec2};
 use image::DynamicImage;
-use log::{debug, warn};
+use log::{debug, error, warn};
 use std::time::Duration;
 use tokio::time::Instant;
 
@@ -26,11 +26,10 @@ pub struct BackgroundRect {
     pub start_ocr_at: Option<Instant>,
     #[serde(skip)]
     last_ocr_rect_hover_at: Option<Instant>,
-
-    #[serde(skip)]
-    pub capture_image_handle: Option<TextureHandle>,
-    #[serde(skip)]
-    pub debug_image_handle: Option<TextureHandle>,
+    // #[serde(skip)]
+    // pub capture_image_handle: Option<TextureHandle>,
+    // #[serde(skip)]
+    // pub debug_image_handle: Option<TextureHandle>,
 }
 
 pub fn start_ocr_id() -> Id {
@@ -65,12 +64,9 @@ impl BackgroundRect {
             ctx.data_mut(|x| x.insert_temp(Id::new("ocr_is_cancelled"), true));
         }
 
-        if settings.show_capture_image {
-            show_image_in_window(ctx, "Capture Image", self.capture_image_handle.clone());
-        }
-        if settings.show_debug_image {
-            show_image_in_window(ctx, "Debug Image", self.debug_image_handle.clone());
-        }
+        ImageDisplayType::CAPTURE.show_image_in_window(ctx, &settings.capture_image);
+        ImageDisplayType::DEBUG.show_image_in_window(ctx, &settings.debug_image);
+        ImageDisplayType::PREPROCESSED.show_image_in_window(ctx, &settings.filtered_image);
     }
 
     fn check_start_ocr(&mut self, ctx: &Context, settings: &AppSettings) {
@@ -97,20 +93,6 @@ impl BackgroundRect {
         }
         false
     }
-}
-
-fn show_image_in_window(ctx: &egui::Context, title: &str, texture: Option<TextureHandle>) {
-    egui::Window::new(title).show(ctx, |ui| {
-        if let Some(texture) = texture {
-            ui.add(
-                egui::Image::new(&texture)
-                    .shrink_to_fit()
-                    .corner_radius(10.0),
-            );
-        } else {
-            ui.label("No Image");
-        }
-    });
 }
 
 impl BackgroundRect {
@@ -171,24 +153,27 @@ impl BackgroundRect {
         };
 
         if are_inputs_unchanged(&ctx, screenshot_parameter.clone(), image.clone()) {
-            ctx.emit(ResetStartOcrAt);
+            emit_event(Event::ResetOcrStartTime);
             return;
         }
 
         ctx.data_mut(|x| x.insert_temp(Id::new("ocr_is_cancelled"), false));
 
-        let ctx = ctx.clone();
         TASK_TRACKER.spawn(async move {
             debug!("Start ocr");
-            ctx.emit(UpdateBackendStatus(
+            emit_event(Event::UpdateBackendStatus(
                 Backend::MangaOcr,
                 BackendStatus::Running,
             ));
-            let screenshot = run_ocr(screenshot_parameter, image).await.unwrap();
+            match run_ocr(screenshot_parameter, image).await {
+                Ok(x) => emit_event(Event::UpdateScreenshotResult(x)),
+                Err(x) => error!("{x}"),
+            };
             debug!("Start ocr done");
-            ctx.emit(UpdateBackendStatus(Backend::MangaOcr, BackendStatus::Ready));
-
-            ctx.emit(UpdateScreenshotResult(screenshot));
+            emit_event(Event::UpdateBackendStatus(
+                Backend::MangaOcr,
+                BackendStatus::Ready,
+            ));
         });
     }
 
