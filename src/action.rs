@@ -5,7 +5,7 @@ use crate::jpn::{dict, get_jpn_data, JpnData};
 use crate::ocr::manga_ocr::get_kanji_top_text;
 use crate::ocr::{BackendResult, OcrBackend};
 use crate::translation::google::translate;
-use crate::ui::image_display::ImageDisplayType::{CAPTURE, DEBUG, PREPROCESSED};
+use crate::ui::image_display::ImageDisplayType::{DEBUG, PREPROCESSED};
 use crate::{database, detect};
 use futures::future::join_all;
 use image::DynamicImage;
@@ -60,10 +60,20 @@ pub async fn run_ocr(
         );
     }
 
-    let image = capture_image.clone();
+    let capture_image = capture_image.clone();
+    let mut debug_image = capture_image.clone();
+    detect::comictextdetector::draw_rects(&mut debug_image, &all_boxes);
+
+    emit_event(Event::UpdateImageDisplay(DEBUG, Some(debug_image)));
+
+    let preprocess_image = preprocess_image(&capture_image);
+    emit_event(Event::UpdateImageDisplay(
+        PREPROCESSED,
+        Some(preprocess_image.clone()),
+    ));
 
     let cutout_results: Vec<(Rect, BackendResult)> =
-        run_ocr_on_cutout_images(&image, &backend, rects)?;
+        run_ocr_on_cutout_images(&preprocess_image, &backend, rects)?;
 
     let mut futures = vec![];
 
@@ -91,15 +101,13 @@ pub async fn run_ocr(
         }
     }
 
-    //Draw Boxes
-    let capture_image = capture_image.clone();
-    let mut debug_image = capture_image.clone();
-    detect::comictextdetector::draw_rects(&mut debug_image, &all_boxes);
-
-    emit_event(Event::UpdateImageDisplay(CAPTURE, Some(capture_image)));
-    emit_event(Event::UpdateImageDisplay(DEBUG, Some(debug_image)));
-
     Ok(ScreenshotResult { ocr_results })
+}
+
+fn preprocess_image(image: &DynamicImage) -> DynamicImage {
+    let filtered = imageproc::filter::sharpen_gaussian(&image.grayscale().to_luma8(), 5., 10.);
+
+    filtered.into()
 }
 
 fn run_ocr_on_cutout_images(
@@ -107,8 +115,6 @@ fn run_ocr_on_cutout_images(
     backend: &OcrBackend,
     rects: Vec<Rect>,
 ) -> anyhow::Result<Vec<(Rect, BackendResult)>> {
-    let preprocess_image = preprocess_image(capture_image);
-
     let cutout_images: Vec<DynamicImage> = rects
         .iter()
         .map(|x| get_cutout_image(&capture_image, x))
@@ -119,18 +125,7 @@ fn run_ocr_on_cutout_images(
 
     let result: Vec<(Rect, BackendResult)> = rects.into_iter().zip(result).collect();
 
-    emit_event(Event::UpdateImageDisplay(
-        PREPROCESSED,
-        Some(preprocess_image),
-    ));
-
     Ok(result)
-}
-
-fn preprocess_image(image: &DynamicImage) -> DynamicImage {
-    let filtered = imageproc::filter::sharpen_gaussian(&image.grayscale().to_luma8(), 5., 10.);
-
-    filtered.into()
 }
 
 async fn get_result_data(ocr: String, rect: Rect, result: BackendResult) -> ResultData {

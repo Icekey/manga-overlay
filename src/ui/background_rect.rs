@@ -3,12 +3,13 @@ use crate::action::{run_ocr, ScreenshotParameter, ScreenshotResult};
 use crate::event::event::{emit_event, Event};
 use crate::ocr::OcrBackend::MangaOcr;
 use crate::ui::image_display::ImageDisplayType;
+use crate::ui::image_display::ImageDisplayType::CAPTURE;
 use crate::ui::settings::{Backend, BackendStatus};
 use crate::ui::shutdown::TASK_TRACKER;
 use eframe::epaint::StrokeKind;
 use egui::{Color32, Context, Id, Pos2, Rect, Sense, Vec2};
 use image::DynamicImage;
-use log::{debug, error, warn};
+use log::{error, warn};
 use std::time::Duration;
 use tokio::time::Instant;
 
@@ -156,20 +157,19 @@ impl BackgroundRect {
             emit_event(Event::ResetOcrStartTime);
             return;
         }
+        emit_event(Event::UpdateImageDisplay(CAPTURE, Some(image.clone())));
 
         ctx.data_mut(|x| x.insert_temp(Id::new("ocr_is_cancelled"), false));
 
         TASK_TRACKER.spawn(async move {
-            debug!("Start ocr");
             emit_event(Event::UpdateBackendStatus(
                 Backend::MangaOcr,
                 BackendStatus::Running,
             ));
             match run_ocr(screenshot_parameter, image).await {
                 Ok(x) => emit_event(Event::UpdateScreenshotResult(x)),
-                Err(x) => error!("{x}"),
+                Err(x) => error!("Error while run_ocr: {x}"),
             };
-            debug!("Start ocr done");
             emit_event(Event::UpdateBackendStatus(
                 Backend::MangaOcr,
                 BackendStatus::Ready,

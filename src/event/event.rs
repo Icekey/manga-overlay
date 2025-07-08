@@ -8,6 +8,7 @@ use eframe::epaint::textures::TextureOptions;
 use eframe::epaint::{ColorImage, TextureHandle};
 use egui::{Context, Id, Memory};
 use image::{DynamicImage, EncodableLayout};
+use log::debug;
 use std::ops::Add;
 use std::sync::{Arc, LazyLock, Mutex};
 use std::time::Duration;
@@ -80,7 +81,11 @@ fn update_selected_jpn_data(state: &mut OcrApp, data: JpnData) {
 }
 
 fn update_backend_status(ctx: &Context, backend: Backend, backend_status: BackendStatus) {
-    backend.set_status(ctx, backend_status)
+    debug!(
+        "Update Backend '{:#?}' to Status '{:#?}'",
+        backend, backend_status
+    );
+    backend.set_status(ctx, backend_status);
 }
 
 fn reset_ui(ctx: &Context, state: &mut OcrApp) {
