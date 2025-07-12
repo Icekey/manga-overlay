@@ -1,5 +1,5 @@
 use crate::ocr::manga_ocr::{KanjiTopResults, MANGA_OCR};
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use image::DynamicImage;
 use serde::{Deserialize, Serialize};
 use strum::{EnumIter, EnumString};
@@ -21,15 +21,15 @@ pub enum BackendResult {
 }
 
 impl OcrBackend {
-    pub fn run_backend(&self, images: &[DynamicImage]) -> Result<Vec<BackendResult>> {
+    pub fn run_backend(&self, images: Vec<&DynamicImage>) -> Result<Vec<BackendResult>> {
         match self {
             OcrBackend::MangaOcr => run_manga_ocr(images),
         }
     }
 }
 
-fn run_manga_ocr(images: &[DynamicImage]) -> Result<Vec<BackendResult>> {
-    let model = MANGA_OCR.lock().unwrap();
+fn run_manga_ocr(images: Vec<&DynamicImage>) -> Result<Vec<BackendResult>> {
+    let model = MANGA_OCR.lock().expect("Manga OCR lock failed");
     if let Ok(model) = model.as_ref() {
         let result = model.inference(images);
         let result = result.into_iter().map(BackendResult::MangaOcr).collect();
@@ -43,7 +43,8 @@ fn run_manga_ocr(images: &[DynamicImage]) -> Result<Vec<BackendResult>> {
 mod tests {
     use log::info;
 
-    use crate::action::{run_ocr, ResultData, ScreenshotParameter, ScreenshotResult};
+    use crate::action::{OcrPipeline, ResultData, run_ocr};
+    use crate::event::event::{Event, get_events};
     use crate::ocr::OcrBackend;
     use crate::ocr::OcrBackend::MangaOcr;
 
@@ -126,24 +127,21 @@ mod tests {
 
     async fn run_test(expected: &[ResultData]) {
         let image = image::open("input/input.jpg").expect("Failed to open image");
-        let run_ocr: ScreenshotResult = run_ocr(
-            ScreenshotParameter {
-                detect_boxes: true,
-                backend: OcrBackend::MangaOcr,
-                ..ScreenshotParameter::default()
-            },
-            image,
-        )
-        .await
-        .unwrap();
+        run_ocr(image, OcrPipeline::default()).await;
 
-        run_ocr
-            .ocr_results
-            .iter()
-            .zip(expected.iter())
-            .for_each(|(a, b)| {
-                test_result_data(a, b);
-            });
+        let event = get_events()
+            .into_iter()
+            .find(|event| matches!(event, Event::UpdateScreenshotResult(_)))
+            .unwrap();
+        if let Event::UpdateScreenshotResult(run_ocr) = event {
+            run_ocr
+                .ocr_results
+                .iter()
+                .zip(expected.iter())
+                .for_each(|(a, b)| {
+                    test_result_data(a, b);
+                });
+        }
     }
 
     fn test_result_data(a: &ResultData, b: &ResultData) {

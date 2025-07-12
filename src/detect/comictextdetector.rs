@@ -1,10 +1,10 @@
+use std::cmp::{max, min};
 use std::sync::{Arc, LazyLock, Mutex};
 
 use crate::detect::session_builder::create_session_builder;
 use anyhow::Result;
 use image::imageops::FilterType;
-use image::{DynamicImage, GenericImageView, Rgba};
-use imageproc::drawing::draw_hollow_rect_mut;
+use image::{DynamicImage, GenericImageView};
 use imageproc::rect::Rect;
 use log::{debug, error};
 use ndarray::Array4;
@@ -29,7 +29,7 @@ impl DetectState {
         Self { session }
     }
 
-    pub fn run_model(&self, threshold: f32, img: &mut DynamicImage) -> Vec<Boxes> {
+    pub fn run_model(&self, img: &DynamicImage, threshold: f32) -> Vec<Boxes> {
         let model = self.session.lock().unwrap();
         if let Some(model) = model.as_ref() {
             run_model(model, threshold, img).unwrap_or_else(|e| {
@@ -171,11 +171,11 @@ impl Boxes {
         let img_width = img.width() as f32;
         let img_height = img.height() as f32;
 
-        let x = self.get_left() * img_width;
-        let y = self.get_top() * img_height;
-        let width = self.w * img_width;
-        let height = self.h * img_height;
-        Rect::at(x as i32, y as i32).of_size(width as u32, height as u32)
+        let x = (self.get_left() * img_width) as i32;
+        let y = (self.get_top() * img_height) as i32;
+        let width = (self.w * img_width) as u32;
+        let height = (self.h * img_height) as u32;
+        Rect::at(max(0, x), max(0, y)).of_size(min(width, img.width()), min(height, img.height()))
     }
 }
 
@@ -205,22 +205,13 @@ pub fn combine_overlapping_rects(boxes: Vec<Boxes>) -> Vec<Boxes> {
     combined_boxes
 }
 
-pub fn run_model(model: &Session, threshold: f32, img: &mut DynamicImage) -> Result<Vec<Boxes>> {
+pub fn run_model(model: &Session, threshold: f32, img: &DynamicImage) -> Result<Vec<Boxes>> {
     debug!("detect_boxes...");
     let mut boxes = detect_boxes(model, img)?;
 
     boxes.retain(|x| x.confidence > threshold);
     debug!("detect_boxes done with {}", boxes.len());
     Ok(boxes)
-}
-
-pub fn draw_rects(img: &mut DynamicImage, boxes: &[Boxes]) {
-    let red = Rgba([255, 0, 0, 255]);
-
-    for row in boxes {
-        let rect = row.get_rect(img);
-        draw_hollow_rect_mut(img, rect, red);
-    }
 }
 
 #[cfg(test)]
@@ -242,11 +233,9 @@ mod tests {
                 let res_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
                 let output = res_dir.join("output").join(format!("output_{conf:.2}.jpg"));
                 let input_path = res_dir.join("input").join("input.jpg");
-                let mut original_img = image::open(input_path.as_path()).unwrap();
+                let original_img = image::open(input_path.as_path()).unwrap();
 
-                let boxes = run_model(&model, conf, &mut original_img).unwrap();
-
-                draw_rects(&mut original_img, &boxes);
+                let _ = run_model(&model, conf, &original_img).unwrap();
 
                 let _ = original_img.save(&output);
             });

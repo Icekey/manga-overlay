@@ -38,8 +38,8 @@ fn get_output_path(filename: &str) -> PathBuf {
         .expect("unable to get current_dir")
         .join("output");
 
-    fs::create_dir_all(&path_buf).unwrap_or_else(|_| panic!("Unable to create output directory: {:?}",
-                                                            &path_buf));
+    fs::create_dir_all(&path_buf)
+        .unwrap_or_else(|_| panic!("Unable to create output directory: {:?}", &path_buf));
 
     path_buf.join(filename)
 }

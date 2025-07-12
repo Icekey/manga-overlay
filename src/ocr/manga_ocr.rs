@@ -105,7 +105,7 @@ impl MangaOCR {
         Ok(Self { model, vocab })
     }
 
-    pub fn inference(&self, images: &[DynamicImage]) -> Vec<KanjiTopResults> {
+    pub fn inference(&self, images: Vec<&DynamicImage>) -> Vec<KanjiTopResults> {
         if images.is_empty() {
             return vec![];
         }
@@ -215,7 +215,7 @@ impl MangaOCR {
         Ok(token_confs)
     }
 
-    fn create_image_tensor(images: &[DynamicImage]) -> Array4<f32> {
+    fn create_image_tensor(images: Vec<&DynamicImage>) -> Array4<f32> {
         let arrays = images
             .iter()
             .map(|x| Self::fast_image_to_ndarray(x))
@@ -262,18 +262,18 @@ mod tests {
     fn test() {
         let res_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
         let input_path = res_dir.join("input").join("input_rect.jpg");
-        let mut original_img = image::open(input_path.as_path()).unwrap();
-        let images = [original_img];
+        let original_img = image::open(input_path.as_path()).unwrap();
+        let images = vec![&original_img];
 
         let model = MANGA_OCR.lock().unwrap();
         if let Ok(model) = model.as_ref() {
-            let result = model.inference(&images);
+            let result = model.inference(images);
 
             for data in result.iter() {
                 for i in 0..10 {
                     let text = get_kanji_top_text_with_conf(data, i)
                         .unwrap_or("<no_kanji_top_text>".to_string());
-                    println!("{}: {:#?}", i, text);
+                    dbg!("{}: {:#?}", i, text);
                 }
             }
         }

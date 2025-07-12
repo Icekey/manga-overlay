@@ -1,24 +1,21 @@
+use crate::database;
 use crate::database::{HistoryData, KanjiStatistic};
-use crate::detect::comictextdetector::{combine_overlapping_rects, Boxes, DETECT_STATE};
-use crate::event::event::{emit_event, Event};
-use crate::jpn::{dict, get_jpn_data, JpnData};
+use crate::detect::comictextdetector::{DETECT_STATE, combine_overlapping_rects};
+use crate::event::event::Event::UpdateImageDisplay;
+use crate::event::event::{Event, emit_event};
+use crate::jpn::{JpnData, dict, get_jpn_data};
+use crate::ocr::OcrBackend::MangaOcr;
 use crate::ocr::manga_ocr::get_kanji_top_text;
 use crate::ocr::{BackendResult, OcrBackend};
 use crate::translation::google::translate;
-use crate::ui::image_display::ImageDisplayType::{DEBUG, PREPROCESSED};
-use crate::{database, detect};
+use crate::ui::image_display::ImageDisplayType::DEBUG;
+use crate::ui::settings::{Backend, BackendStatus, PreprocessConfig};
+use ::serde::{Deserialize, Serialize};
 use futures::future::join_all;
-use image::DynamicImage;
+use image::{DynamicImage, GenericImage};
 use imageproc::rect::Rect;
 use itertools::Itertools;
 use log::info;
-use open::that;
-use ::serde::{Deserialize, Serialize};
-
-pub fn open_workdir() {
-    let current_dir = std::env::current_dir().expect("Failed to get current_dir");
-    that(current_dir).expect("Failed to open current_dir");
-}
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Default, Clone)]
 pub struct ScreenshotParameter {
@@ -26,67 +23,124 @@ pub struct ScreenshotParameter {
     pub y: i32,
     pub width: u32,
     pub height: u32,
-    pub detect_boxes: bool,
-    pub full_capture_ocr: bool,
-    pub backend: OcrBackend,
-    pub threshold: f32,
+    pub pipeline: OcrPipeline,
 }
 
-pub async fn run_ocr(
-    parameter: ScreenshotParameter,
-    mut capture_image: DynamicImage,
-) -> anyhow::Result<ScreenshotResult> {
-    let backend: OcrBackend = parameter.backend;
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+pub struct OcrPipeline(pub Vec<OcrPipelineStep>);
 
-    //Detect Boxes
-    let all_boxes: Vec<Boxes> = if parameter.detect_boxes {
-        DETECT_STATE
-            .clone()
-            .run_model(parameter.threshold, &mut capture_image)
-    } else {
-        vec![]
-    };
+impl Default for OcrPipeline {
+    fn default() -> Self {
+        let steps = vec![
+            OcrPipelineStep::ImageProcessing(PreprocessConfig::default()),
+            OcrPipelineStep::BoxDetection { threshold: 0.08 },
+            OcrPipelineStep::OcrStep { backend: MangaOcr },
+        ];
 
-    let boxes = combine_overlapping_rects(all_boxes.clone());
-
-    //Run OCR on Boxes
-    let mut rects: Vec<Rect> = boxes.iter().map(|x| x.get_rect(&capture_image)).collect();
-
-    if parameter.full_capture_ocr {
-        //Add full image rect
-        rects.insert(
-            0,
-            Rect::at(0, 0).of_size(capture_image.width(), capture_image.height()),
-        );
+        OcrPipeline(steps)
     }
+}
 
-    let capture_image = capture_image.clone();
-    let mut debug_image = capture_image.clone();
-    detect::comictextdetector::draw_rects(&mut debug_image, &all_boxes);
-
-    emit_event(Event::UpdateImageDisplay(DEBUG, Some(debug_image)));
-
-    let preprocess_image = preprocess_image(&capture_image);
-    emit_event(Event::UpdateImageDisplay(
-        PREPROCESSED,
-        Some(preprocess_image.clone()),
+pub async fn run_ocr(image: DynamicImage, OcrPipeline(pipeline_steps): OcrPipeline) {
+    emit_event(Event::UpdateBackendStatus(
+        Backend::MangaOcr,
+        BackendStatus::Running,
     ));
 
-    let cutout_results: Vec<(Rect, BackendResult)> =
-        run_ocr_on_cutout_images(&preprocess_image, &backend, rects)?;
+    let width = image.width();
+    let height = image.height();
+    let mut images = vec![SubImage { x: 0, y: 0, image }];
 
-    let mut futures = vec![];
-
-    for (rect, result) in cutout_results {
-        let ocr = match &result {
-            BackendResult::MangaOcr(top_results) => get_kanji_top_text(&top_results, 1),
-        };
-        if let Some(x) = ocr {
-            futures.push(get_result_data(x, rect, result))
-        }
+    for step in pipeline_steps {
+        images = step.run_ocr_pipeline_step(&images).await;
+        show_debug_image(&images, width, height);
     }
 
-    let ocr_results: Vec<ResultData> = join_all(futures).await.into_iter().collect();
+    emit_event(Event::UpdateBackendStatus(
+        Backend::MangaOcr,
+        BackendStatus::Ready,
+    ));
+}
+
+fn show_debug_image(sub_images: &Vec<SubImage>, width: u32, height: u32) {
+    if sub_images.is_empty() {
+        // emit_event(UpdateImageDisplay(DEBUG, None));
+        return;
+    }
+
+    let mut image = DynamicImage::new(width, height, sub_images[0].image.color());
+
+    for sub_image in sub_images {
+        let dynamic_image = &sub_image.image;
+
+        let _ = image.copy_from(dynamic_image, sub_image.x as u32, sub_image.y as u32);
+    }
+
+    emit_event(UpdateImageDisplay(DEBUG, Some(image)));
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+pub enum OcrPipelineStep {
+    ImageProcessing(PreprocessConfig),
+    BoxDetection { threshold: f32 },
+    OcrStep { backend: OcrBackend },
+}
+
+impl OcrPipelineStep {
+    pub async fn run_ocr_pipeline_step(&self, images: &Vec<SubImage>) -> Vec<SubImage> {
+        match self {
+            OcrPipelineStep::ImageProcessing(config) => images
+                .iter()
+                .map(|image| run_image_processing(image, config))
+                .collect(),
+            OcrPipelineStep::BoxDetection { threshold } => images
+                .iter()
+                .map(|image| run_box_detection(image, *threshold))
+                .flatten()
+                .collect(),
+            OcrPipelineStep::OcrStep { backend } => run_ocr_step(images, backend).await,
+        }
+    }
+}
+
+fn run_image_processing(sub_image: &SubImage, config: &PreprocessConfig) -> SubImage {
+    let image = preprocess_image(&sub_image.image, config);
+    SubImage {
+        x: sub_image.x,
+        y: sub_image.y,
+        image,
+    }
+}
+
+fn run_box_detection(sub_image: &SubImage, threshold: f32) -> Vec<SubImage> {
+    let image = &sub_image.image;
+
+    let boxes = DETECT_STATE.run_model(image, threshold);
+    let boxes = combine_overlapping_rects(boxes);
+    boxes
+        .iter()
+        .map(|x| x.get_rect(image))
+        .map(|x| (x, get_cutout_image(image, &x)))
+        .map(|(rect, img)| SubImage {
+            x: sub_image.x + rect.left(),
+            y: sub_image.y + rect.top(),
+            image: img,
+        })
+        .collect()
+}
+
+async fn run_ocr_step(images: &Vec<SubImage>, backend: &OcrBackend) -> Vec<SubImage> {
+    let images_ref: Vec<&DynamicImage> = images.iter().map(|x| &x.image).collect();
+
+    let result: Vec<BackendResult> = backend.run_backend(images_ref).unwrap();
+
+    let result: Vec<(Rect, BackendResult)> = images
+        .iter()
+        .map(|sub| Rect::at(sub.x, sub.y).of_size(sub.image.width(), sub.image.height()))
+        .zip(result)
+        .collect();
+
+    let ocr_results = get_ocr_results(result).await;
 
     for ocr_result in &ocr_results {
         //Store OCR
@@ -101,31 +155,46 @@ pub async fn run_ocr(
         }
     }
 
-    Ok(ScreenshotResult { ocr_results })
+    emit_event(Event::UpdateScreenshotResult(ScreenshotResult {
+        ocr_results,
+    }));
+
+    Vec::new()
 }
 
-fn preprocess_image(image: &DynamicImage) -> DynamicImage {
-    let filtered = imageproc::filter::sharpen_gaussian(&image.grayscale().to_luma8(), 5., 10.);
+pub struct SubImage {
+    pub x: i32,
+    pub y: i32,
+    pub image: DynamicImage,
+}
+
+async fn get_ocr_results(cutout_results: Vec<(Rect, BackendResult)>) -> Vec<ResultData> {
+    let mut futures = vec![];
+
+    for (rect, result) in cutout_results {
+        let ocr = match &result {
+            BackendResult::MangaOcr(top_results) => get_kanji_top_text(&top_results, 0),
+        };
+        if let Some(x) = ocr {
+            futures.push(get_result_data(x, rect, result))
+        }
+    }
+
+    join_all(futures).await.into_iter().collect()
+}
+
+fn preprocess_image(image: &DynamicImage, config: &PreprocessConfig) -> DynamicImage {
+    if !config.active {
+        return image.clone();
+    }
+
+    let filtered = imageproc::filter::sharpen_gaussian(
+        &image.grayscale().to_luma8(),
+        config.sigma,
+        config.amount,
+    );
 
     filtered.into()
-}
-
-fn run_ocr_on_cutout_images(
-    capture_image: &DynamicImage,
-    backend: &OcrBackend,
-    rects: Vec<Rect>,
-) -> anyhow::Result<Vec<(Rect, BackendResult)>> {
-    let cutout_images: Vec<DynamicImage> = rects
-        .iter()
-        .map(|x| get_cutout_image(&capture_image, x))
-        .filter(|x| x.width() != 0 && x.height() != 0)
-        .collect();
-
-    let result: Vec<BackendResult> = backend.run_backend(&cutout_images)?;
-
-    let result: Vec<(Rect, BackendResult)> = rects.into_iter().zip(result).collect();
-
-    Ok(result)
 }
 
 async fn get_result_data(ocr: String, rect: Rect, result: BackendResult) -> ResultData {
@@ -255,9 +324,10 @@ pub async fn get_kanji_jpn_data(kanji: &str) -> Option<JpnData> {
 
 #[cfg(test)]
 mod tests {
-    use crate::action::{run_ocr, ScreenshotParameter};
+    use crate::action::{OcrPipeline, run_ocr};
+    use crate::event::event::{Event, get_events};
+    use crate::ocr::BackendResult;
     use crate::ocr::manga_ocr::KanjiConf;
-    use crate::ocr::{BackendResult, OcrBackend};
     use image::DynamicImage;
     use std::path::Path;
 
@@ -276,43 +346,38 @@ mod tests {
             .clone()
             .save(Path::new("./input/blurry_filtered.png"));
 
-        let run_ocr = run_ocr(
-            ScreenshotParameter {
-                detect_boxes: true,
-                threshold: 0.08,
-                backend: OcrBackend::MangaOcr,
-                ..ScreenshotParameter::default()
-            },
-            DynamicImage::ImageLuma8(filtered),
-        )
-        .await
-        .unwrap();
+        run_ocr(DynamicImage::ImageLuma8(filtered), OcrPipeline::default()).await;
 
-        for result in &run_ocr.ocr_results {
-            if let Some(result) = &result.backend_result {
-                match result {
-                    BackendResult::MangaOcr(x) => {
-                        for i in 0..x.len() {
-                            let option = x.get(i).unwrap();
-                            let ocr = KanjiConf::get_ocr(option);
+        let event = get_events()
+            .into_iter()
+            .find(|event| matches!(event, Event::UpdateScreenshotResult(_)))
+            .unwrap();
+        if let Event::UpdateScreenshotResult(run_ocr) = event {
+            for result in &run_ocr.ocr_results {
+                if let Some(result) = &result.backend_result {
+                    match result {
+                        BackendResult::MangaOcr(x) => {
+                            for i in 0..x.len() {
+                                let option = x.get(i).unwrap();
+                                let ocr = KanjiConf::get_ocr(option);
 
-                            dbg!(i, &ocr);
+                                dbg!(i, &ocr);
+                            }
+                        }
+                    }
+                }
+            }
+
+            for result in &run_ocr.ocr_results {
+                if let Some(result) = &result.backend_result {
+                    match result {
+                        BackendResult::MangaOcr(x) => {
+                            dbg!(KanjiConf::get_conf_matrix(&x));
                         }
                     }
                 }
             }
         }
-
-        for result in &run_ocr.ocr_results {
-            if let Some(result) = &result.backend_result {
-                match result {
-                    BackendResult::MangaOcr(x) => {
-                        dbg!(KanjiConf::get_conf_matrix(&x));
-                    }
-                }
-            }
-        }
-
         // dbg!(run_ocr);
     }
 }

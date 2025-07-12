@@ -1,7 +1,7 @@
 use super::background_rect::start_ocr_id;
-use crate::action::open_workdir;
 use crate::event::event::{emit_event, Event};
 use crate::ui::image_display::{ImageDisplay, ImageDisplayType};
+use crate::ui::pipeline_config::OcrPipeline;
 use egui::{Button, CollapsingHeader, Color32, Id, RichText, Spinner, Ui};
 use strum::IntoEnumIterator;
 
@@ -18,17 +18,15 @@ pub struct AppSettings {
     pub hover_delay_ms: u64,
 
     //OCR Settings
-    pub detect_boxes: bool,
-
     pub show_statistics: bool,
     pub show_history: bool,
-    pub threshold: f32,
-
     pub show_debug_cursor: bool,
 
     pub capture_image: ImageDisplay,
     pub debug_image: ImageDisplay,
     pub filtered_image: ImageDisplay,
+
+    pub pipeline_config: OcrPipeline,
 }
 
 impl Default for AppSettings {
@@ -37,18 +35,17 @@ impl Default for AppSettings {
             clear_color: Color32::TRANSPARENT,
             mouse_passthrough: false,
             decorations: false,
-            detect_boxes: true,
             zoom_factor: 1.5,
             auto_restart_ocr: true,
             auto_restart_delay_ms: 1000,
             hover_delay_ms: 1000,
             show_statistics: false,
             show_history: false,
-            threshold: 0.5,
             show_debug_cursor: false,
             capture_image: ImageDisplay::default(),
             debug_image: ImageDisplay::default(),
             filtered_image: ImageDisplay::default(),
+            pipeline_config: OcrPipeline::default(),
         }
     }
 }
@@ -71,6 +68,7 @@ impl AppSettings {
             });
 
             self.show_ocr_config(ui);
+            self.pipeline_config.show(ui);
             self.show_debug_config(ui);
 
             ui.separator();
@@ -87,7 +85,7 @@ impl AppSettings {
         });
     }
 
-    fn show_window_settings(&mut self, ui: &mut egui::Ui) {
+    fn show_window_settings(&mut self, ui: &mut Ui) {
         egui::widgets::global_theme_preference_buttons(ui);
 
         ui.horizontal(|ui| {
@@ -113,17 +111,6 @@ impl AppSettings {
     fn show_ocr_config(&mut self, ui: &mut egui::Ui) {
         CollapsingHeader::new("OCR Config").show(ui, |ui| {
             ui.horizontal(|ui| {
-                ui.selectable_value(&mut self.detect_boxes, false, "Full Capture");
-                ui.selectable_value(&mut self.detect_boxes, true, "Detect Boxes");
-            });
-            ui.horizontal(|ui| {
-                if !self.detect_boxes {
-                    ui.disable()
-                }
-                ui.add(egui::Slider::new(&mut self.threshold, 0.0..=1.0).text("Box Threshold"));
-            });
-
-            ui.horizontal(|ui| {
                 ui.add(
                     egui::Slider::new(&mut self.auto_restart_delay_ms, 0..=5000)
                         .text("Auto Restart Time (ms)"),
@@ -141,7 +128,8 @@ impl AppSettings {
     fn show_debug_config(&mut self, ui: &mut egui::Ui) {
         CollapsingHeader::new("Debug Config").show(ui, |ui| {
             if ui.button("Open Workdir").clicked() {
-                open_workdir();
+                let current_dir = std::env::current_dir().expect("Failed to get current_dir");
+                open::that(current_dir).expect("Failed to open current_dir");
             }
 
             ui.horizontal(|ui| {
@@ -214,5 +202,37 @@ impl Backend {
 
     pub fn set_status(&self, ctx: &egui::Context, status: BackendStatus) {
         ctx.data_mut(|data| data.insert_temp(self.get_id(), status));
+    }
+}
+
+#[derive(serde::Deserialize, serde::Serialize, PartialEq, Debug, Clone)]
+#[serde(default)]
+pub struct PreprocessConfig {
+    pub active: bool,
+    pub sigma: f32,
+    pub amount: f32,
+}
+
+impl Default for PreprocessConfig {
+    fn default() -> Self {
+        Self {
+            active: false,
+            sigma: 5.0,
+            amount: 10.0,
+        }
+    }
+}
+
+impl PreprocessConfig {
+    pub fn show(&mut self, ui: &mut Ui) {
+        ui.checkbox(&mut self.active, "Enable Image Preprocessing");
+
+        ui.horizontal(|ui| {
+            ui.add(egui::Slider::new(&mut self.sigma, 0.1..=100.0).text("Sigma"));
+        });
+
+        ui.horizontal(|ui| {
+            ui.add(egui::Slider::new(&mut self.amount, -100.0..=100.0).text("Amount"));
+        });
     }
 }

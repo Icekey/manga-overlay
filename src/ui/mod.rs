@@ -1,9 +1,11 @@
 pub mod app;
 pub mod background_rect;
+pub mod id_item;
 pub mod image_display;
 pub mod kanji_history_ui;
 pub mod kanji_statistic_ui;
 pub mod mouse_hover;
+pub mod pipeline_config;
 pub mod screenshot_result_ui;
 pub mod settings;
 pub mod shutdown;
