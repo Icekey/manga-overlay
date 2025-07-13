@@ -1,9 +1,12 @@
 use crate::action::OcrPipelineStep;
+use crate::event::event::Event::RemovePipelineStep;
+use crate::event::event::emit_event;
 use crate::ocr::OcrBackend;
 use crate::ui::id_item::{IdItem, IdItemVec};
 use crate::ui::settings::PreprocessConfig;
-use egui::{CollapsingHeader, Ui};
-use egui_dnd::{DragDropItem, dnd};
+use eframe::epaint::Color32;
+use egui::{CollapsingHeader, RichText, Ui};
+use egui_dnd::dnd;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -35,15 +38,24 @@ impl Default for OcrPipeline {
 impl OcrPipeline {
     pub fn show(&mut self, ui: &mut Ui) {
         CollapsingHeader::new("OCR Pipeline Config").show(ui, |ui| {
-            dnd(ui, "dnd_pipeline").show_vec(&mut self.items, |ui, item, handle, _state| {
+            dnd(ui, "dnd_pipeline").show_vec(&mut self.items, |ui, item, handle, state| {
                 ui.horizontal(|ui| {
                     handle.ui(ui, |ui| {
-                        ui.label("\u{2B0D}");
+                        ui.label(format!("{} \u{2B0D}", state.index + 1));
                     });
 
                     ui.checkbox(&mut item.active, "");
+
                     item.show(ui);
+
+                    if ui
+                        .button(RichText::new("\u{1F5D9}").color(Color32::RED))
+                        .clicked()
+                    {
+                        emit_event(RemovePipelineStep(1))
+                    }
                 });
+
                 ui.separator();
             });
             ui.horizontal(|ui| {
@@ -69,11 +81,9 @@ impl OcrPipeline {
 
 impl IdItem<OcrPipelineStep> {
     pub fn show(&mut self, ui: &mut Ui) {
-        CollapsingHeader::new(self.item.header_name())
-            .id_salt(&self.id())
-            .show(ui, |ui| {
-                ui.add_enabled_ui(self.active, |ui| self.item.show(ui))
-            });
+        ui.menu_button(self.item.header_name(), |ui| {
+            self.item.show(ui);
+        });
     }
 }
 

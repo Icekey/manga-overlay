@@ -34,7 +34,7 @@ where
 {
     fn push_item(&mut self, item: T);
 
-    fn create_inner_vec(&self) -> Vec<T>;
+    fn create_active_item_vec(&self) -> Vec<T>;
 }
 
 impl<T> IdItemVec<T> for Vec<IdItem<T>>
@@ -56,7 +56,10 @@ where
         });
     }
 
-    fn create_inner_vec(&self) -> Vec<T> {
-        self.iter().map(|i| i.item.clone()).collect()
+    fn create_active_item_vec(&self) -> Vec<T> {
+        self.iter()
+            .filter(|x| x.active)
+            .map(|i| i.item.clone())
+            .collect()
     }
 }

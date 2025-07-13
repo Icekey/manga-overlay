@@ -63,15 +63,11 @@ impl BackgroundRect {
         if bg_response.response.dragged() {
             ctx.data_mut(|x| x.insert_temp(Id::new("ocr_is_cancelled"), true));
         }
-
-        ImageDisplayType::CAPTURE.show_image_in_window(ctx, &settings.capture_image);
-        ImageDisplayType::DEBUG.show_image_in_window(ctx, &settings.debug_image);
-        ImageDisplayType::PREPROCESSED.show_image_in_window(ctx, &settings.filtered_image);
     }
 
     fn check_start_ocr(&mut self, ctx: &Context, settings: &AppSettings) {
         if self.hide_ocr_rects {
-            //Rect are hidden => screenshot can be taken
+            //Rects are hidden => screenshot can be taken
             self.start_ocr(ctx, settings);
             self.hide_ocr_rects = false;
         }
@@ -141,7 +137,7 @@ impl BackgroundRect {
             y: global_rect.min.y as i32,
             width: global_rect.width() as u32,
             height: global_rect.height() as u32,
-            pipeline: OcrPipeline(settings.pipeline_config.items.create_inner_vec()),
+            pipeline: OcrPipeline(settings.pipeline_config.items.create_active_item_vec()),
         };
 
         let Ok(image) = screenshot_parameter.get_screenshot() else {
@@ -157,8 +153,13 @@ impl BackgroundRect {
 
         ctx.data_mut(|x| x.insert_temp(Id::new("ocr_is_cancelled"), false));
 
+        let auto_restart = settings.auto_restart_ocr;
         TASK_TRACKER.spawn(async move {
             run_ocr(image, screenshot_parameter.pipeline).await;
+
+            if auto_restart {
+                emit_event(Event::ResetOcrStartTime);
+            }
         });
     }
 

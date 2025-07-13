@@ -1,5 +1,5 @@
 use super::background_rect::start_ocr_id;
-use crate::event::event::{emit_event, Event};
+use crate::event::event::{Event, emit_event};
 use crate::ui::image_display::{ImageDisplay, ImageDisplayType};
 use crate::ui::pipeline_config::OcrPipeline;
 use egui::{Button, CollapsingHeader, Color32, Id, RichText, Spinner, Ui};
@@ -52,6 +52,12 @@ impl Default for AppSettings {
 
 impl AppSettings {
     pub(crate) fn show(&mut self, ctx: &egui::Context) {
+        self.capture_image
+            .show_image_in_window(ctx, "Capture Image");
+        self.debug_image.show_image_in_window(ctx, "Debug Image");
+        self.filtered_image
+            .show_image_in_window(ctx, "Processed Image");
+
         let window = egui::Window::new("Settings")
             .default_width(50.0)
             .resizable(false);
@@ -208,7 +214,6 @@ impl Backend {
 #[derive(serde::Deserialize, serde::Serialize, PartialEq, Debug, Clone)]
 #[serde(default)]
 pub struct PreprocessConfig {
-    pub active: bool,
     pub sigma: f32,
     pub amount: f32,
 }
@@ -216,7 +221,6 @@ pub struct PreprocessConfig {
 impl Default for PreprocessConfig {
     fn default() -> Self {
         Self {
-            active: false,
             sigma: 5.0,
             amount: 10.0,
         }
@@ -225,8 +229,6 @@ impl Default for PreprocessConfig {
 
 impl PreprocessConfig {
     pub fn show(&mut self, ui: &mut Ui) {
-        ui.checkbox(&mut self.active, "Enable Image Preprocessing");
-
         ui.horizontal(|ui| {
             ui.add(egui::Slider::new(&mut self.sigma, 0.1..=100.0).text("Sigma"));
         });

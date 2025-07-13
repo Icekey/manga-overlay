@@ -42,27 +42,18 @@ impl Default for OcrPipeline {
 }
 
 pub async fn run_ocr(image: DynamicImage, OcrPipeline(pipeline_steps): OcrPipeline) {
-    emit_event(Event::UpdateBackendStatus(
-        Backend::MangaOcr,
-        BackendStatus::Running,
-    ));
-
     let width = image.width();
     let height = image.height();
     let mut images = vec![SubImage { x: 0, y: 0, image }];
+    show_debug_image(0, &images, width, height);
 
-    for step in pipeline_steps {
+    for (index, step) in pipeline_steps.iter().enumerate() {
         images = step.run_ocr_pipeline_step(&images).await;
-        show_debug_image(&images, width, height);
+        show_debug_image(index + 1, &images, width, height);
     }
-
-    emit_event(Event::UpdateBackendStatus(
-        Backend::MangaOcr,
-        BackendStatus::Ready,
-    ));
 }
 
-fn show_debug_image(sub_images: &Vec<SubImage>, width: u32, height: u32) {
+fn show_debug_image(index: usize, sub_images: &Vec<SubImage>, width: u32, height: u32) {
     if sub_images.is_empty() {
         // emit_event(UpdateImageDisplay(DEBUG, None));
         return;
@@ -76,7 +67,7 @@ fn show_debug_image(sub_images: &Vec<SubImage>, width: u32, height: u32) {
         let _ = image.copy_from(dynamic_image, sub_image.x as u32, sub_image.y as u32);
     }
 
-    emit_event(UpdateImageDisplay(DEBUG, Some(image)));
+    emit_event(UpdateImageDisplay(DEBUG(index), Some(image)));
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -132,7 +123,17 @@ fn run_box_detection(sub_image: &SubImage, threshold: f32) -> Vec<SubImage> {
 async fn run_ocr_step(images: &Vec<SubImage>, backend: &OcrBackend) -> Vec<SubImage> {
     let images_ref: Vec<&DynamicImage> = images.iter().map(|x| &x.image).collect();
 
+    emit_event(Event::UpdateBackendStatus(
+        Backend::MangaOcr,
+        BackendStatus::Running,
+    ));
+
     let result: Vec<BackendResult> = backend.run_backend(images_ref).unwrap();
+
+    emit_event(Event::UpdateBackendStatus(
+        Backend::MangaOcr,
+        BackendStatus::Ready,
+    ));
 
     let result: Vec<(Rect, BackendResult)> = images
         .iter()
@@ -159,9 +160,10 @@ async fn run_ocr_step(images: &Vec<SubImage>, backend: &OcrBackend) -> Vec<SubIm
         ocr_results,
     }));
 
-    Vec::new()
+    images.iter().map(|x| x.clone()).collect()
 }
 
+#[derive(PartialEq, Debug, Clone)]
 pub struct SubImage {
     pub x: i32,
     pub y: i32,
@@ -184,10 +186,6 @@ async fn get_ocr_results(cutout_results: Vec<(Rect, BackendResult)>) -> Vec<Resu
 }
 
 fn preprocess_image(image: &DynamicImage, config: &PreprocessConfig) -> DynamicImage {
-    if !config.active {
-        return image.clone();
-    }
-
     let filtered = imageproc::filter::sharpen_gaussian(
         &image.grayscale().to_luma8(),
         config.sigma,

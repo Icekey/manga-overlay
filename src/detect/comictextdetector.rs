@@ -175,7 +175,10 @@ impl Boxes {
         let y = (self.get_top() * img_height) as i32;
         let width = (self.w * img_width) as u32;
         let height = (self.h * img_height) as u32;
-        Rect::at(max(0, x), max(0, y)).of_size(min(width, img.width()), min(height, img.height()))
+        Rect::at(max(0, x), max(0, y)).of_size(
+            max(0, min(width, img.width())),
+            max(0, min(height, img.height())),
+        )
     }
 }
 
