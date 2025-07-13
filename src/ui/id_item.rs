@@ -33,8 +33,6 @@ where
     T: Clone,
 {
     fn push_item(&mut self, item: T);
-
-    fn create_active_item_vec(&self) -> Vec<T>;
 }
 
 impl<T> IdItemVec<T> for Vec<IdItem<T>>
@@ -54,12 +52,5 @@ where
             item,
             active: true,
         });
-    }
-
-    fn create_active_item_vec(&self) -> Vec<T> {
-        self.iter()
-            .filter(|x| x.active)
-            .map(|i| i.item.clone())
-            .collect()
     }
 }

@@ -2,7 +2,7 @@ use crate::OcrApp;
 use crate::action::ScreenshotResult;
 use crate::database::{HistoryData, KanjiStatistic};
 use crate::jpn::JpnData;
-use crate::ui::image_display::ImageDisplayType;
+use crate::ui::image_display::ImageWrapper;
 use crate::ui::settings::{Backend, BackendStatus};
 use eframe::epaint::textures::TextureOptions;
 use eframe::epaint::{ColorImage, TextureHandle};
@@ -24,7 +24,7 @@ pub enum Event {
     UpdateBackendStatus(Backend, BackendStatus),
     ResetUi,
     ResetOcrStartTime,
-    UpdateImageDisplay(ImageDisplayType, Option<DynamicImage>),
+    UpdateImageDisplay(usize, String, Option<DynamicImage>),
     RemovePipelineStep(usize),
 }
 
@@ -40,8 +40,8 @@ impl Event {
             }
             Event::ResetUi => reset_ui(ctx, state),
             Event::ResetOcrStartTime => reset_ocr_start_time(state),
-            Event::UpdateImageDisplay(image_typ, image) => {
-                update_image_display(ctx, state, image_typ, image)
+            Event::UpdateImageDisplay(index, label, image) => {
+                update_image_display(ctx, state, index, label, image)
             }
             Event::RemovePipelineStep(index) => remove_pipeline_step(state, index),
         }
@@ -107,24 +107,19 @@ fn reset_ocr_start_time(state: &mut OcrApp) {
 fn update_image_display(
     ctx: &Context,
     state: &mut OcrApp,
-    image_type: ImageDisplayType,
+    index: usize,
+    label: String,
     image: Option<DynamicImage>,
 ) {
-    let index = if let ImageDisplayType::DEBUG(index) = image_type {
-        index
-    } else {
-        0
-    };
+    let texture = create_texture(ctx, image.as_ref(), &format!("debug_image_{index}"));
 
-    let texture = create_texture(ctx, image.as_ref(), image_type.get_texture_name());
-
-    let image_handles = &mut image_type
-        .get_image_display(&mut state.settings)
-        .image_handles;
+    let image_handles = &mut state.settings.debug_images.image_handles;
     let vec_size = max(index + 1, image_handles.len());
-    image_handles.resize(vec_size, None);
+    image_handles.resize(vec_size, ImageWrapper::default());
 
-    image_handles[index] = texture;
+    let wrapper = &mut image_handles[index];
+    wrapper.label = label;
+    wrapper.image_handle = texture;
 }
 
 fn create_texture(
@@ -151,7 +146,7 @@ fn create_texture(
 
 fn remove_pipeline_step(state: &mut OcrApp, index: usize) {
     state.settings.pipeline_config.items.remove(index);
-    state.settings.debug_image.image_handles.remove(index);
+    state.settings.debug_images.image_handles.remove(index);
 }
 
 static EVENT_HANDLER: LazyLock<Arc<Mutex<Vec<Event>>>> =

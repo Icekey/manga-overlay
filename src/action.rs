@@ -8,7 +8,7 @@ use crate::ocr::OcrBackend::MangaOcr;
 use crate::ocr::manga_ocr::get_kanji_top_text;
 use crate::ocr::{BackendResult, OcrBackend};
 use crate::translation::google::translate;
-use crate::ui::image_display::ImageDisplayType::DEBUG;
+use crate::ui::id_item::IdItem;
 use crate::ui::settings::{Backend, BackendStatus, PreprocessConfig};
 use ::serde::{Deserialize, Serialize};
 use futures::future::join_all;
@@ -27,7 +27,7 @@ pub struct ScreenshotParameter {
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-pub struct OcrPipeline(pub Vec<OcrPipelineStep>);
+pub struct OcrPipeline(pub Vec<IdItem<OcrPipelineStep>>);
 
 impl Default for OcrPipeline {
     fn default() -> Self {
@@ -36,8 +36,7 @@ impl Default for OcrPipeline {
             OcrPipelineStep::BoxDetection { threshold: 0.08 },
             OcrPipelineStep::OcrStep { backend: MangaOcr },
         ];
-
-        OcrPipeline(steps)
+        OcrPipeline(IdItem::from_vec(steps))
     }
 }
 
@@ -45,17 +44,36 @@ pub async fn run_ocr(image: DynamicImage, OcrPipeline(pipeline_steps): OcrPipeli
     let width = image.width();
     let height = image.height();
     let mut images = vec![SubImage { x: 0, y: 0, image }];
-    show_debug_image(0, &images, width, height);
+    show_debug_image(0, "Capture Image".to_string(), &images, width, height);
 
     for (index, step) in pipeline_steps.iter().enumerate() {
-        images = step.run_ocr_pipeline_step(&images).await;
-        show_debug_image(index + 1, &images, width, height);
+        if step.active {
+            images = step.item.run_ocr_pipeline_step(&images).await;
+            show_debug_image(
+                index + 1,
+                step.item.name().to_string(),
+                &images,
+                width,
+                height,
+            );
+        } else {
+            emit_event(UpdateImageDisplay(
+                index + 1,
+                step.item.name().to_string(),
+                None,
+            ));
+        }
     }
 }
 
-fn show_debug_image(index: usize, sub_images: &Vec<SubImage>, width: u32, height: u32) {
+fn show_debug_image(
+    index: usize,
+    label: String,
+    sub_images: &Vec<SubImage>,
+    width: u32,
+    height: u32,
+) {
     if sub_images.is_empty() {
-        // emit_event(UpdateImageDisplay(DEBUG, None));
         return;
     }
 
@@ -67,7 +85,7 @@ fn show_debug_image(index: usize, sub_images: &Vec<SubImage>, width: u32, height
         let _ = image.copy_from(dynamic_image, sub_image.x as u32, sub_image.y as u32);
     }
 
-    emit_event(UpdateImageDisplay(DEBUG(index), Some(image)));
+    emit_event(UpdateImageDisplay(index, label, Some(image)));
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -90,6 +108,14 @@ impl OcrPipelineStep {
                 .flatten()
                 .collect(),
             OcrPipelineStep::OcrStep { backend } => run_ocr_step(images, backend).await,
+        }
+    }
+
+    pub fn name(&self) -> &'static str {
+        match self {
+            OcrPipelineStep::ImageProcessing(_) => "Image Processing",
+            OcrPipelineStep::BoxDetection { .. } => "Box Detection",
+            OcrPipelineStep::OcrStep { .. } => "OCR Step",
         }
     }
 }

@@ -1,9 +1,8 @@
 use super::background_rect::start_ocr_id;
 use crate::event::event::{Event, emit_event};
-use crate::ui::image_display::{ImageDisplay, ImageDisplayType};
+use crate::ui::image_display::ImageDisplay;
 use crate::ui::pipeline_config::OcrPipeline;
 use egui::{Button, CollapsingHeader, Color32, Id, RichText, Spinner, Ui};
-use strum::IntoEnumIterator;
 
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)]
@@ -22,9 +21,7 @@ pub struct AppSettings {
     pub show_history: bool,
     pub show_debug_cursor: bool,
 
-    pub capture_image: ImageDisplay,
-    pub debug_image: ImageDisplay,
-    pub filtered_image: ImageDisplay,
+    pub debug_images: ImageDisplay,
 
     pub pipeline_config: OcrPipeline,
 }
@@ -42,9 +39,7 @@ impl Default for AppSettings {
             show_statistics: false,
             show_history: false,
             show_debug_cursor: false,
-            capture_image: ImageDisplay::default(),
-            debug_image: ImageDisplay::default(),
-            filtered_image: ImageDisplay::default(),
+            debug_images: ImageDisplay::default(),
             pipeline_config: OcrPipeline::default(),
         }
     }
@@ -52,11 +47,7 @@ impl Default for AppSettings {
 
 impl AppSettings {
     pub(crate) fn show(&mut self, ctx: &egui::Context) {
-        self.capture_image
-            .show_image_in_window(ctx, "Capture Image");
-        self.debug_image.show_image_in_window(ctx, "Debug Image");
-        self.filtered_image
-            .show_image_in_window(ctx, "Processed Image");
+        self.debug_images.show_image_in_window(ctx, "Debug Image");
 
         let window = egui::Window::new("Settings")
             .default_width(50.0)
@@ -143,9 +134,7 @@ impl AppSettings {
                 ui.color_edit_button_srgba(&mut self.clear_color);
             });
 
-            for x in ImageDisplayType::iter() {
-                self.show_image_checkbox(ui, x);
-            }
+            ui.checkbox(&mut self.debug_images.visible, "Show Debug Images");
 
             ui.checkbox(&mut self.show_debug_cursor, "Show Debug Cursor");
 
@@ -153,13 +142,6 @@ impl AppSettings {
                 emit_event(Event::ResetUi);
             }
         });
-    }
-
-    fn show_image_checkbox(&mut self, ui: &mut Ui, image_display_type: ImageDisplayType) {
-        ui.checkbox(
-            &mut image_display_type.get_image_display(self).visible,
-            format!("Show {}", image_display_type.get_title()),
-        );
     }
 }
 

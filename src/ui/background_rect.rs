@@ -1,9 +1,6 @@
 use super::{mouse_hover::get_frame_rect, screenshot_result_ui::scale_rect, settings::AppSettings};
 use crate::action::{OcrPipeline, ScreenshotParameter, ScreenshotResult, run_ocr};
 use crate::event::event::{Event, emit_event};
-use crate::ui::id_item::IdItemVec;
-use crate::ui::image_display::ImageDisplayType;
-use crate::ui::image_display::ImageDisplayType::CAPTURE;
 use crate::ui::shutdown::TASK_TRACKER;
 use eframe::epaint::StrokeKind;
 use egui::{Color32, Context, Id, Pos2, Rect, Sense, Vec2};
@@ -26,10 +23,6 @@ pub struct BackgroundRect {
     pub start_ocr_at: Option<Instant>,
     #[serde(skip)]
     last_ocr_rect_hover_at: Option<Instant>,
-    // #[serde(skip)]
-    // pub capture_image_handle: Option<TextureHandle>,
-    // #[serde(skip)]
-    // pub debug_image_handle: Option<TextureHandle>,
 }
 
 pub fn start_ocr_id() -> Id {
@@ -137,7 +130,7 @@ impl BackgroundRect {
             y: global_rect.min.y as i32,
             width: global_rect.width() as u32,
             height: global_rect.height() as u32,
-            pipeline: OcrPipeline(settings.pipeline_config.items.create_active_item_vec()),
+            pipeline: OcrPipeline(settings.pipeline_config.items.clone()),
         };
 
         let Ok(image) = screenshot_parameter.get_screenshot() else {
@@ -149,8 +142,6 @@ impl BackgroundRect {
             emit_event(Event::ResetOcrStartTime);
             return;
         }
-        emit_event(Event::UpdateImageDisplay(CAPTURE, Some(image.clone())));
-
         ctx.data_mut(|x| x.insert_temp(Id::new("ocr_is_cancelled"), false));
 
         let auto_restart = settings.auto_restart_ocr;
