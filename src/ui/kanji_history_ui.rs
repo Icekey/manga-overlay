@@ -4,7 +4,7 @@ use egui::{CentralPanel, TopBottomPanel};
 use egui_extras::{Column, TableBuilder};
 use tokio::time::sleep;
 
-use crate::event::event::{emit_event, Event};
+use crate::event::event::{Event, emit_event};
 use crate::ui::shutdown::TASK_TRACKER;
 use crate::{action, database::HistoryData};
 

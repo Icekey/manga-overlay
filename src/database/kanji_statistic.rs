@@ -1,5 +1,5 @@
 use anyhow::{Ok, Result};
-use rusqlite::{params, Connection, Row};
+use rusqlite::{Connection, Row, params};
 use serde::Serialize;
 
 use super::table::create_table;

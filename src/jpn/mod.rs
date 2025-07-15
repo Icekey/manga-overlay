@@ -1,4 +1,4 @@
-use crate::jpn::kanji::{get_kanji_data, KanjiData};
+use crate::jpn::kanji::{KanjiData, get_kanji_data};
 use crate::ui::shutdown::TASK_TRACKER;
 use jmdict::{Entry, GlossLanguage};
 

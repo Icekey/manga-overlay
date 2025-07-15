@@ -1,11 +1,11 @@
 use super::background_rect::BackgroundRect;
-use super::kanji_history_ui::{init_history_updater, HistoryDataUi};
-use super::kanji_statistic_ui::{init_kanji_statistic_updater, KanjiStatisticUi};
+use super::kanji_history_ui::{HistoryDataUi, init_history_updater};
+use super::kanji_statistic_ui::{KanjiStatisticUi, init_kanji_statistic_updater};
 use super::settings::{AppSettings, Backend, BackendStatus};
 use crate::detect::comictextdetector::DETECT_STATE;
-use crate::event::event::{emit_event, get_events, Event};
+use crate::event::event::{Event, emit_event, get_events};
 use crate::ocr::manga_ocr::MANGA_OCR;
-use crate::ui::shutdown::{shutdown_tasks, TASK_TRACKER};
+use crate::ui::shutdown::{TASK_TRACKER, shutdown_tasks};
 use egui::Context;
 use futures::join;
 use std::sync::LazyLock;

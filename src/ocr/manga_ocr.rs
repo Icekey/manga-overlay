@@ -2,7 +2,7 @@ use crate::detect::session_builder::create_session_builder;
 use hf_hub::api::sync::Api;
 use image::DynamicImage;
 use itertools::Itertools;
-use ndarray::{s, stack, Array3, Array4, ArrayBase, Axis, Dim, Ix, OwnedRepr};
+use ndarray::{Array3, Array4, ArrayBase, Axis, Dim, Ix, OwnedRepr, s, stack};
 use ort::{inputs, session::Session};
 use serde::{Deserialize, Serialize};
 use std::ops::{Div, Sub};

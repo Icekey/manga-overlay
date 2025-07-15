@@ -3,7 +3,7 @@ use egui::{Align2, Color32, Id, Pos2, Rect, RichText, Sense, Vec2};
 use std::time::{Duration, Instant};
 
 use super::mouse_hover::get_frame_mouse_position;
-use crate::action::{self, get_translation, ResultData, ScreenshotResult};
+use crate::action::{self, ResultData, ScreenshotResult, get_translation};
 use crate::ui::shutdown::TASK_TRACKER;
 
 impl ScreenshotResult {
@@ -13,15 +13,13 @@ impl ScreenshotResult {
         let frame_mouse_position = get_frame_mouse_position(ctx).unwrap_or_default();
         let mut area_hovered = false;
 
-        let clicked_result_id = Id::new("clicked_result");
-        let clicked_result = ctx
-            .data(|x| x.get_temp::<i32>(clicked_result_id))
-            .unwrap_or(-1);
+        let clicked_result_id = Id::new("clicked_result_pos");
+        let clicked_result_pos = ctx.data(|x| x.get_temp::<Pos2>(clicked_result_id));
 
         for (i, result) in self.ocr_results.iter().enumerate() {
             let rect = result.get_ui_rect(ctx);
             let rect = rect.translate(screenshot_rect.left_top().to_vec2());
-            let rect_is_clicked = clicked_result == i as i32;
+            let rect_is_clicked = clicked_result_pos.filter(|x| rect.contains(*x)).is_some();
             let area = egui::Area::new(Id::new(format!("ScreenshotResult {} {}", i, result.ocr)))
                 .current_pos(rect.left_top())
                 .sense(Sense::click())
@@ -59,8 +57,11 @@ impl ScreenshotResult {
             }
 
             if area.response.secondary_clicked() {
-                let value: i32 = if rect_is_clicked { -1 } else { i as i32 };
-                ctx.data_mut(|x| x.insert_temp(clicked_result_id, value));
+                if rect_is_clicked {
+                    ctx.data_mut(|x| x.remove_temp::<Pos2>(clicked_result_id));
+                } else {
+                    ctx.data_mut(|x| x.insert_temp(clicked_result_id, frame_mouse_position));
+                }
             }
 
             if area.response.hovered() {
@@ -157,43 +158,59 @@ fn show_ocr_info_window(ctx: &egui::Context, rect: &Rect, result: &ResultData, i
     } else {
         (Align2::LEFT_TOP, rect.right() + 3.0)
     };
-    egui::Window::new(format!("OCR Info {} {}", index, result.ocr))
+
+    let last_ocr_text_id = Id::new("last_ocr_text_id");
+    let changed_text = ctx.data_mut(|x| {
+        let last_text: String = x.get_temp(last_ocr_text_id).unwrap_or_default();
+
+        x.insert_temp(last_ocr_text_id, result.ocr.clone());
+
+        last_text != result.ocr
+    });
+
+    let default_pos = Pos2::new(default_pos_x, rect.top());
+    let mut window = egui::Window::new(format!("OCR Info {}", index))
         .title_bar(false)
         .pivot(pivot)
-        .default_pos(Pos2::new(default_pos_x, rect.top()))
-        .default_width(500.0)
-        .show(ctx, |ui| {
-            if !result.translation.is_empty() && is_translation_visible(ctx) {
-                ui.label(get_info_text(&result.translation));
-                ui.separator();
-            }
+        .default_pos(default_pos.clone())
+        .default_width(500.0);
 
-            let id = Id::new("Scroll Y");
-            let index = ui.data(|map| map.get_temp(id)).unwrap_or_default();
-            let selected_jpn_data = result.get_jpn_data_with_info_by_index(index);
-            for jpn in &result.jpn {
-                ui.spacing_mut().item_spacing = Vec2::new(0.0, 0.0);
-                ui.horizontal_wrapped(|ui| {
-                    for jpn_data in jpn {
-                        let kanji = jpn_data.get_kanji();
-                        let mut text = get_info_text(&kanji);
-                        if jpn_data.has_kanji_data() {
-                            text = text.underline();
-                        }
-                        if selected_jpn_data == Some(jpn_data) {
-                            text = text.color(Color32::RED);
-                        }
-                        ui.label(text);
+    if changed_text {
+        window = window.current_pos(default_pos);
+    }
+
+    window.show(ctx, |ui| {
+        if !result.translation.is_empty() && is_translation_visible(ctx) {
+            ui.label(get_info_text(&result.translation));
+            ui.separator();
+        }
+
+        let id = Id::new("Scroll Y");
+        let index = ui.data(|map| map.get_temp(id)).unwrap_or_default();
+        let selected_jpn_data = result.get_jpn_data_with_info_by_index(index);
+        for jpn in &result.jpn {
+            ui.spacing_mut().item_spacing = Vec2::new(0.0, 0.0);
+            ui.horizontal_wrapped(|ui| {
+                for jpn_data in jpn {
+                    let kanji = jpn_data.get_kanji();
+                    let mut text = get_info_text(&kanji);
+                    if jpn_data.has_kanji_data() {
+                        text = text.underline();
                     }
-                });
-            }
+                    if selected_jpn_data == Some(jpn_data) {
+                        text = text.color(Color32::RED);
+                    }
+                    ui.label(text);
+                }
+            });
+        }
 
-            if let Some(info) = selected_jpn_data {
-                ui.separator();
-                show_jpn_data_info(ui, info);
-                update_kanji_statistic(ui, info);
-            }
-        });
+        if let Some(info) = selected_jpn_data {
+            ui.separator();
+            show_jpn_data_info(ui, info);
+            update_kanji_statistic(ui, info);
+        }
+    });
 }
 
 pub fn show_jpn_data_info(ui: &mut egui::Ui, info: &crate::jpn::JpnData) {

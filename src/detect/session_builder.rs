@@ -1,7 +1,7 @@
 use log::{info, warn};
 use ort::execution_providers::{CUDAExecutionProvider, ExecutionProvider};
-use ort::session::builder::SessionBuilder;
 use ort::session::Session;
+use ort::session::builder::SessionBuilder;
 
 pub fn create_session_builder() -> anyhow::Result<SessionBuilder> {
     let mut builder = Session::builder()?

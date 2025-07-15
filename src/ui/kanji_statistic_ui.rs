@@ -5,8 +5,8 @@ use egui_extras::{Column, TableBuilder};
 use tokio::time::sleep;
 
 use super::screenshot_result_ui::show_jpn_data_info;
-use crate::event::event::emit_event;
 use crate::event::event::Event::{UpdateKanjiStatistic, UpdateSelectedJpnData};
+use crate::event::event::emit_event;
 use crate::ui::shutdown::TASK_TRACKER;
 use crate::{action, database::KanjiStatistic, jpn::JpnData};
 
