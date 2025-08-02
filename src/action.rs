@@ -13,6 +13,7 @@ use crate::ui::settings::{Backend, BackendStatus, PreprocessConfig};
 use ::serde::{Deserialize, Serialize};
 use futures::future::join_all;
 use image::{DynamicImage, GenericImage};
+use imageproc::contrast::{ThresholdType, otsu_level};
 use imageproc::rect::Rect;
 use itertools::Itertools;
 use log::info;
@@ -212,11 +213,17 @@ async fn get_ocr_results(cutout_results: Vec<(Rect, BackendResult)>) -> Vec<Resu
 }
 
 fn preprocess_image(image: &DynamicImage, config: &PreprocessConfig) -> DynamicImage {
-    let filtered = imageproc::filter::sharpen_gaussian(
-        &image.grayscale().to_luma8(),
-        config.sigma,
-        config.amount,
-    );
+    let gray_image = image.grayscale().to_luma8();
+    let filtered = match config {
+        PreprocessConfig::SharpenGaussian { sigma, amount } => {
+            imageproc::filter::sharpen_gaussian(&gray_image, *sigma, *amount)
+        }
+        PreprocessConfig::Threshold => imageproc::contrast::threshold(
+            &gray_image,
+            otsu_level(&gray_image),
+            ThresholdType::ToZero,
+        ),
+    };
 
     filtered.into()
 }

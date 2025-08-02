@@ -194,15 +194,14 @@ impl Backend {
 }
 
 #[derive(serde::Deserialize, serde::Serialize, PartialEq, Debug, Clone)]
-#[serde(default)]
-pub struct PreprocessConfig {
-    pub sigma: f32,
-    pub amount: f32,
+pub enum PreprocessConfig {
+    SharpenGaussian { sigma: f32, amount: f32 },
+    Threshold,
 }
 
 impl Default for PreprocessConfig {
     fn default() -> Self {
-        Self {
+        PreprocessConfig::SharpenGaussian {
             sigma: 5.0,
             amount: 10.0,
         }
@@ -211,12 +210,17 @@ impl Default for PreprocessConfig {
 
 impl PreprocessConfig {
     pub fn show(&mut self, ui: &mut Ui) {
-        ui.horizontal(|ui| {
-            ui.add(egui::Slider::new(&mut self.sigma, 0.1..=100.0).text("Sigma"));
-        });
+        match self {
+            PreprocessConfig::SharpenGaussian { sigma, amount } => {
+                ui.horizontal(|ui| {
+                    ui.add(egui::Slider::new(sigma, 0.1..=100.0).text("Sigma"));
+                });
 
-        ui.horizontal(|ui| {
-            ui.add(egui::Slider::new(&mut self.amount, -100.0..=100.0).text("Amount"));
-        });
+                ui.horizontal(|ui| {
+                    ui.add(egui::Slider::new(amount, -100.0..=100.0).text("Amount"));
+                });
+            }
+            PreprocessConfig::Threshold => {}
+        }
     }
 }

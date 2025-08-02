@@ -21,6 +21,7 @@ impl Default for OcrPipeline {
     fn default() -> Self {
         let vec = vec![
             OcrPipelineStep::ImageProcessing(PreprocessConfig::default()),
+            OcrPipelineStep::ImageProcessing(PreprocessConfig::Threshold),
             OcrPipelineStep::BoxDetection { threshold: 0.5 },
             OcrPipelineStep::OcrStep {
                 backend: OcrBackend::MangaOcr,
@@ -106,7 +107,10 @@ impl OcrPipelineStep {
 
     fn header_name(&self) -> &'static str {
         match self {
-            OcrPipelineStep::ImageProcessing(_) => "Image Processing",
+            OcrPipelineStep::ImageProcessing(config) => match config {
+                PreprocessConfig::SharpenGaussian { .. } => "Sharpen Gaussian",
+                PreprocessConfig::Threshold => "Threshold",
+            },
             OcrPipelineStep::BoxDetection { .. } => "Box Detection",
             OcrPipelineStep::OcrStep { .. } => "OCR Step",
         }
