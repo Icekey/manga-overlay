@@ -145,8 +145,12 @@ fn create_texture(
 }
 
 fn remove_pipeline_step(state: &mut OcrApp, index: usize) {
-    state.settings.pipeline_config.items.remove(index);
-    state.settings.debug_images.image_handles.remove(index);
+    if state.settings.pipeline_config.items.len() > index {
+        state.settings.pipeline_config.items.remove(index);
+    }
+    if state.settings.debug_images.image_handles.len() > index {
+        state.settings.debug_images.image_handles.remove(index);
+    }
 }
 
 static EVENT_HANDLER: LazyLock<Arc<Mutex<Vec<Event>>>> =

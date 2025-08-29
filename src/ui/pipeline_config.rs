@@ -53,7 +53,7 @@ impl OcrPipeline {
                         .button(RichText::new("\u{1F5D9}").color(Color32::RED))
                         .clicked()
                     {
-                        emit_event(RemovePipelineStep(1))
+                        emit_event(RemovePipelineStep(state.index))
                     }
                 });
 
