@@ -23,6 +23,7 @@ impl Default for OcrPipeline {
             OcrPipelineStep::ImageProcessing(PreprocessConfig::default()),
             OcrPipelineStep::ImageProcessing(PreprocessConfig::Threshold),
             OcrPipelineStep::BoxDetection { threshold: 0.5 },
+            OcrPipelineStep::CutoutCaptureImage,
             OcrPipelineStep::OcrStep {
                 backend: OcrBackend::MangaOcr,
             },
@@ -93,16 +94,12 @@ impl OcrPipelineStep {
         match self {
             OcrPipelineStep::ImageProcessing(config) => config.show(ui),
             OcrPipelineStep::BoxDetection { threshold } => Self::show_box_detection(ui, threshold),
-            OcrPipelineStep::OcrStep { backend } => Self::show_ocr_step(ui, backend),
+            _ => {}
         }
     }
 
     fn show_box_detection(ui: &mut Ui, threshold: &mut f32) {
         ui.add(egui::Slider::new(threshold, 0.0..=1.0).text("Box Threshold"));
-    }
-
-    fn show_ocr_step(ui: &mut Ui, backend: &mut OcrBackend) {
-        ui.label(backend.to_string());
     }
 
     fn header_name(&self) -> &'static str {
@@ -111,8 +108,7 @@ impl OcrPipelineStep {
                 PreprocessConfig::SharpenGaussian { .. } => "Sharpen Gaussian",
                 PreprocessConfig::Threshold => "Threshold",
             },
-            OcrPipelineStep::BoxDetection { .. } => "Box Detection",
-            OcrPipelineStep::OcrStep { .. } => "OCR Step",
+            _ => self.name(),
         }
     }
 }

@@ -41,15 +41,22 @@ impl Default for OcrPipeline {
     }
 }
 
-pub async fn run_ocr(image: DynamicImage, OcrPipeline(pipeline_steps): OcrPipeline) {
-    let width = image.width();
-    let height = image.height();
-    let mut images = vec![SubImage { x: 0, y: 0, image }];
+pub async fn run_ocr(captured_image: DynamicImage, OcrPipeline(pipeline_steps): OcrPipeline) {
+    let width = captured_image.width();
+    let height = captured_image.height();
+    let mut images = vec![SubImage {
+        x: 0,
+        y: 0,
+        image: captured_image.clone(),
+    }];
     show_debug_image(0, "Capture Image".to_string(), &images, width, height);
 
     for (index, step) in pipeline_steps.iter().enumerate() {
         if step.active {
-            images = step.item.run_ocr_pipeline_step(&images).await;
+            images = step
+                .item
+                .run_ocr_pipeline_step(&captured_image, &images)
+                .await;
             show_debug_image(
                 index + 1,
                 step.item.name().to_string(),
@@ -94,10 +101,15 @@ pub enum OcrPipelineStep {
     ImageProcessing(PreprocessConfig),
     BoxDetection { threshold: f32 },
     OcrStep { backend: OcrBackend },
+    CutoutCaptureImage,
 }
 
 impl OcrPipelineStep {
-    pub async fn run_ocr_pipeline_step(&self, images: &Vec<SubImage>) -> Vec<SubImage> {
+    pub async fn run_ocr_pipeline_step(
+        &self,
+        capture_image: &DynamicImage,
+        images: &Vec<SubImage>,
+    ) -> Vec<SubImage> {
         match self {
             OcrPipelineStep::ImageProcessing(config) => images
                 .iter()
@@ -109,6 +121,18 @@ impl OcrPipelineStep {
                 .flatten()
                 .collect(),
             OcrPipelineStep::OcrStep { backend } => run_ocr_step(images, backend).await,
+            OcrPipelineStep::CutoutCaptureImage => images
+                .iter()
+                .map(|SubImage { x, y, image }| {
+                    let crop =
+                        capture_image.crop_imm(*x as u32, *y as u32, image.width(), image.height());
+                    SubImage {
+                        x: *x,
+                        y: *y,
+                        image: crop,
+                    }
+                })
+                .collect(),
         }
     }
 
@@ -117,6 +141,7 @@ impl OcrPipelineStep {
             OcrPipelineStep::ImageProcessing(_) => "Image Processing",
             OcrPipelineStep::BoxDetection { .. } => "Box Detection",
             OcrPipelineStep::OcrStep { .. } => "OCR Step",
+            OcrPipelineStep::CutoutCaptureImage => "Cutout Capture Image",
         }
     }
 }
