@@ -82,7 +82,7 @@ impl OcrPipeline {
 
 impl IdItem<OcrPipelineStep> {
     pub fn show(&mut self, ui: &mut Ui) {
-        ui.menu_button(self.item.header_name(), |ui| {
+        CollapsingHeader::new(self.item.header_name()).show(ui, |ui| {
             self.item.show(ui);
         });
     }
