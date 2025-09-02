@@ -66,13 +66,13 @@ impl OcrPipeline {
                 };
 
                 egui::ComboBox::from_label("Add Step")
-                    .selected_text(self.new_step_selected.header_name().to_string())
+                    .selected_text((&self.new_step_selected).name().to_string())
                     .show_ui(ui, |ui| {
                         for step in &mut self.new_step_combobox {
                             ui.selectable_value(
                                 &mut self.new_step_selected,
                                 step.clone(),
-                                step.header_name(),
+                                step.name(),
                             );
                         }
                     });
@@ -83,9 +83,11 @@ impl OcrPipeline {
 
 impl IdItem<OcrPipelineStep> {
     pub fn show(&mut self, ui: &mut Ui) {
-        CollapsingHeader::new(self.item.header_name()).show(ui, |ui| {
-            self.item.show(ui);
-        });
+        if self.item.has_parameters() {
+            CollapsingHeader::new((&self.item).name()).show(ui, |ui| self.item.show(ui));
+        } else {
+            ui.label((&self.item).name());
+        }
     }
 }
 
@@ -98,17 +100,14 @@ impl OcrPipelineStep {
         }
     }
 
-    fn show_box_detection(ui: &mut Ui, threshold: &mut f32) {
-        ui.add(egui::Slider::new(threshold, 0.0..=1.0).text("Box Threshold"));
+    fn has_parameters(&self) -> bool {
+        match self {
+            OcrPipelineStep::ImageProcessing(_) | OcrPipelineStep::BoxDetection { .. } => true,
+            _ => false,
+        }
     }
 
-    fn header_name(&self) -> &'static str {
-        match self {
-            OcrPipelineStep::ImageProcessing(config) => match config {
-                PreprocessConfig::SharpenGaussian { .. } => "Sharpen Gaussian",
-                PreprocessConfig::Threshold => "Threshold",
-            },
-            _ => self.name(),
-        }
+    fn show_box_detection(ui: &mut Ui, threshold: &mut f32) {
+        ui.add(egui::Slider::new(threshold, 0.0..=1.0).text("Box Threshold"));
     }
 }

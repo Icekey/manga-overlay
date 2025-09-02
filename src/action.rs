@@ -138,7 +138,10 @@ impl OcrPipelineStep {
 
     pub fn name(&self) -> &'static str {
         match self {
-            OcrPipelineStep::ImageProcessing(_) => "Image Processing",
+            OcrPipelineStep::ImageProcessing(config) => match config {
+                PreprocessConfig::SharpenGaussian { .. } => "Sharpen Gaussian",
+                PreprocessConfig::Threshold => "Threshold",
+            },
             OcrPipelineStep::BoxDetection { .. } => "Box Detection",
             OcrPipelineStep::OcrStep { .. } => "OCR Step",
             OcrPipelineStep::CutoutCaptureImage => "Cutout Capture Image",
