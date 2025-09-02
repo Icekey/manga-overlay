@@ -196,7 +196,6 @@ impl Backend {
 #[derive(serde::Deserialize, serde::Serialize, PartialEq, Debug, Clone)]
 pub enum PreprocessConfig {
     SharpenGaussian { sigma: f32, amount: f32 },
-    Threshold,
 }
 
 impl Default for PreprocessConfig {
@@ -220,7 +219,6 @@ impl PreprocessConfig {
                     ui.add(egui::Slider::new(amount, -100.0..=100.0).text("Amount"));
                 });
             }
-            PreprocessConfig::Threshold => {}
         }
     }
 }

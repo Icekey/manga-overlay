@@ -21,7 +21,6 @@ impl Default for OcrPipeline {
     fn default() -> Self {
         let vec = vec![
             OcrPipelineStep::ImageProcessing(PreprocessConfig::default()),
-            OcrPipelineStep::ImageProcessing(PreprocessConfig::Threshold),
             OcrPipelineStep::BoxDetection { threshold: 0.5 },
             OcrPipelineStep::CutoutCaptureImage,
             OcrPipelineStep::OcrStep {
