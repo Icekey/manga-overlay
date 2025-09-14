@@ -24,7 +24,7 @@ pub enum Event {
     UpdateBackendStatus(Backend, BackendStatus),
     ResetUi,
     ResetOcrStartTime,
-    UpdateImageDisplay(usize, String, Option<DynamicImage>),
+    UpdateImageDisplay(usize, usize, String, Option<DynamicImage>),
     RemovePipelineStep(usize),
 }
 
@@ -40,8 +40,8 @@ impl Event {
             }
             Event::ResetUi => reset_ui(ctx, state),
             Event::ResetOcrStartTime => reset_ocr_start_time(state),
-            Event::UpdateImageDisplay(index, label, image) => {
-                update_image_display(ctx, state, index, label, image)
+            Event::UpdateImageDisplay(index, max_index, label, image) => {
+                update_image_display(ctx, state, index, max_index, label, image)
             }
             Event::RemovePipelineStep(index) => remove_pipeline_step(state, index),
         }
@@ -108,13 +108,14 @@ fn update_image_display(
     ctx: &Context,
     state: &mut OcrApp,
     index: usize,
+    max_index: usize,
     label: String,
     image: Option<DynamicImage>,
 ) {
     let texture = create_texture(ctx, image.as_ref(), &format!("debug_image_{index}"));
 
     let image_handles = &mut state.settings.debug_images.image_handles;
-    let vec_size = max(index + 1, image_handles.len());
+    let vec_size = max(index + 1, max_index);
     image_handles.resize(vec_size, ImageWrapper::default());
 
     let wrapper = &mut image_handles[index];

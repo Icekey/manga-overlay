@@ -1,5 +1,7 @@
 use super::background_rect::start_ocr_id;
+use crate::action::OcrPipelineStep;
 use crate::event::event::{Event, emit_event};
+use crate::ui::id_item::{IdItem, IdItemVec};
 use crate::ui::image_display::ImageDisplay;
 use crate::ui::pipeline_config::OcrPipeline;
 use egui::{Button, CollapsingHeader, Color32, Id, RichText, Spinner, Ui};
@@ -24,10 +26,30 @@ pub struct AppSettings {
     pub debug_images: ImageDisplay,
 
     pub pipeline_config: OcrPipeline,
+
+    pub new_step_selected: OcrPipelineStep,
+    pub new_step_combobox: Vec<OcrPipelineStep>,
 }
 
 impl Default for AppSettings {
     fn default() -> Self {
+        let vec = vec![
+            OcrPipelineStep::ImageProcessing(PreprocessConfig::default()),
+            OcrPipelineStep::BoxDetection {
+                threshold: 0.5,
+                use_capture_image_as_output: true,
+            },
+        ];
+
+        let pipeline_config = OcrPipeline {
+            items: IdItem::from_vec(vec![OcrPipelineStep::BoxDetection {
+                threshold: 0.5,
+                use_capture_image_as_output: true,
+            }]),
+            active: true,
+            name: "Box Detection".to_string(),
+        };
+
         Self {
             clear_color: Color32::TRANSPARENT,
             mouse_passthrough: false,
@@ -40,7 +62,9 @@ impl Default for AppSettings {
             show_history: false,
             show_debug_cursor: false,
             debug_images: ImageDisplay::default(),
-            pipeline_config: OcrPipeline::default(),
+            pipeline_config,
+            new_step_selected: OcrPipelineStep::ImageProcessing(PreprocessConfig::default()),
+            new_step_combobox: vec,
         }
     }
 }
@@ -65,7 +89,12 @@ impl AppSettings {
             });
 
             self.show_ocr_config(ui);
-            self.pipeline_config.show(ui);
+
+            CollapsingHeader::new("OCR Pipeline Config").show(ui, |ui| {
+                self.pipeline_config.show(ui);
+                self.show_new_pipeline_step_settings(ui);
+            });
+
             self.show_debug_config(ui);
 
             ui.separator();
@@ -79,6 +108,24 @@ impl AppSettings {
                     "https://github.com/Icekey/manga-overlay",
                 );
             });
+        });
+    }
+
+    fn show_new_pipeline_step_settings(&mut self, ui: &mut Ui) {
+        ui.horizontal(|ui| {
+            if ui.button("\u{229E}").clicked() {
+                self.pipeline_config
+                    .items
+                    .push_item(self.new_step_selected.clone());
+            };
+
+            egui::ComboBox::from_label("Add Step")
+                .selected_text((&self.new_step_selected).name().to_string())
+                .show_ui(ui, |ui| {
+                    for step in &mut self.new_step_combobox {
+                        ui.selectable_value(&mut self.new_step_selected, step.clone(), step.name());
+                    }
+                });
         });
     }
 

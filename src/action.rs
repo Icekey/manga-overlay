@@ -8,7 +8,7 @@ use crate::ocr::OcrBackend::MangaOcr;
 use crate::ocr::manga_ocr::get_kanji_top_text;
 use crate::ocr::{BackendResult, OcrBackend};
 use crate::translation::google::translate;
-use crate::ui::id_item::IdItem;
+use crate::ui::id_item::{IdItem, IdItemVec};
 use crate::ui::settings::{Backend, BackendStatus, PreprocessConfig};
 use ::serde::{Deserialize, Serialize};
 use futures::future::join_all;
@@ -33,7 +33,10 @@ impl Default for OcrPipeline {
     fn default() -> Self {
         let steps = vec![
             OcrPipelineStep::ImageProcessing(PreprocessConfig::default()),
-            OcrPipelineStep::BoxDetection { threshold: 0.08 },
+            OcrPipelineStep::BoxDetection {
+                threshold: 0.08,
+                use_capture_image_as_output: true,
+            },
             OcrPipelineStep::OcrStep { backend: MangaOcr },
         ];
         OcrPipeline(IdItem::from_vec(steps))
@@ -48,33 +51,62 @@ pub async fn run_ocr(captured_image: DynamicImage, OcrPipeline(pipeline_steps): 
         y: 0,
         image: captured_image.clone(),
     }];
-    show_debug_image(0, "Capture Image".to_string(), &images, width, height);
+    let pipeline_steps = get_pipeline_steps_for_ocr(pipeline_steps);
+    let max_index = pipeline_steps.len();
+
+    show_debug_image(
+        0,
+        max_index,
+        "Capture Image".to_string(),
+        &images,
+        width,
+        height,
+    );
 
     for (index, step) in pipeline_steps.iter().enumerate() {
-        if step.active {
-            images = step
-                .item
-                .run_ocr_pipeline_step(&captured_image, &images)
-                .await;
+        images = step
+            .item
+            .run_ocr_pipeline_step(&captured_image, &images)
+            .await;
+        let image_index = index + 1;
+        if image_index != max_index {
             show_debug_image(
-                index + 1,
+                image_index,
+                max_index,
                 step.item.name().to_string(),
                 &images,
                 width,
                 height,
             );
-        } else {
-            emit_event(UpdateImageDisplay(
-                index + 1,
-                step.item.name().to_string(),
-                None,
-            ));
         }
     }
 }
 
+fn get_pipeline_steps_for_ocr(
+    pipeline_steps: Vec<IdItem<OcrPipelineStep>>,
+) -> Vec<IdItem<OcrPipelineStep>> {
+    let pipeline_steps = if let Some(IdItem {
+        item: OcrPipelineStep::OcrStep { .. },
+        ..
+    }) = pipeline_steps.last()
+    {
+        //OcrStep already exists
+        pipeline_steps
+    } else {
+        let mut steps = pipeline_steps.clone();
+        steps.push_item(OcrPipelineStep::OcrStep { backend: MangaOcr });
+        steps
+    };
+
+    pipeline_steps
+        .into_iter()
+        .filter(|step| step.active)
+        .collect()
+}
+
 fn show_debug_image(
     index: usize,
+    max_index: usize,
     label: String,
     sub_images: &Vec<SubImage>,
     width: u32,
@@ -92,15 +124,19 @@ fn show_debug_image(
         let _ = image.copy_from(dynamic_image, sub_image.x as u32, sub_image.y as u32);
     }
 
-    emit_event(UpdateImageDisplay(index, label, Some(image)));
+    emit_event(UpdateImageDisplay(index, max_index, label, Some(image)));
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub enum OcrPipelineStep {
     ImageProcessing(PreprocessConfig),
-    BoxDetection { threshold: f32 },
-    OcrStep { backend: OcrBackend },
-    CutoutCaptureImage,
+    BoxDetection {
+        threshold: f32,
+        use_capture_image_as_output: bool,
+    },
+    OcrStep {
+        backend: OcrBackend,
+    },
 }
 
 impl OcrPipelineStep {
@@ -114,24 +150,29 @@ impl OcrPipelineStep {
                 .iter()
                 .map(|image| run_image_processing(image, config))
                 .collect(),
-            OcrPipelineStep::BoxDetection { threshold } => images
+            OcrPipelineStep::BoxDetection {
+                threshold,
+                use_capture_image_as_output,
+            } => images
                 .iter()
                 .map(|image| run_box_detection(image, *threshold))
                 .flatten()
-                .collect(),
-            OcrPipelineStep::OcrStep { backend } => run_ocr_step(images, backend).await,
-            OcrPipelineStep::CutoutCaptureImage => images
-                .iter()
-                .map(|SubImage { x, y, image }| {
-                    let crop =
-                        capture_image.crop_imm(*x as u32, *y as u32, image.width(), image.height());
-                    SubImage {
-                        x: *x,
-                        y: *y,
-                        image: crop,
+                .map(|sub_image: SubImage| {
+                    if *use_capture_image_as_output {
+                        let SubImage { x, y, image } = sub_image;
+                        let crop = capture_image.crop_imm(
+                            x as u32,
+                            y as u32,
+                            image.width(),
+                            image.height(),
+                        );
+                        SubImage { x, y, image: crop }
+                    } else {
+                        sub_image
                     }
                 })
                 .collect(),
+            OcrPipelineStep::OcrStep { backend } => run_ocr_step(images, backend).await,
         }
     }
 
@@ -142,7 +183,6 @@ impl OcrPipelineStep {
             },
             OcrPipelineStep::BoxDetection { .. } => "Box Detection",
             OcrPipelineStep::OcrStep { .. } => "OCR Step",
-            OcrPipelineStep::CutoutCaptureImage => "Cutout Capture Image",
         }
     }
 }
