@@ -1,7 +1,7 @@
 use super::background_rect::start_ocr_id;
 use crate::action::OcrPipelineStep;
 use crate::event::event::{Event, emit_event};
-use crate::ui::id_item::{IdItem, IdItemVec};
+use crate::ui::id_item::IdItemVec;
 use crate::ui::image_display::ImageDisplay;
 use crate::ui::pipeline_config::OcrPipeline;
 use egui::{Button, CollapsingHeader, Color32, Id, RichText, Spinner, Ui};
@@ -26,10 +26,25 @@ pub struct AppSettings {
 
     pub debug_images: ImageDisplay,
 
-    pub pipeline_config: OcrPipeline,
+    pub pipeline_configs: Vec<OcrPipeline>,
+    pub selected_pipeline: usize,
 
     pub new_step_selected: OcrPipelineStep,
     pub new_step_combobox: Vec<OcrPipelineStep>,
+}
+
+impl AppSettings {
+    pub fn get_current_pipeline(&self) -> &OcrPipeline {
+        self.pipeline_configs
+            .get(self.selected_pipeline)
+            .expect("No Pipeline exists")
+    }
+
+    pub fn get_current_pipeline_mut(&mut self) -> &mut OcrPipeline {
+        self.pipeline_configs
+            .get_mut(self.selected_pipeline)
+            .expect("No Pipeline exists")
+    }
 }
 
 impl Default for AppSettings {
@@ -41,15 +56,6 @@ impl Default for AppSettings {
                 use_capture_image_as_output: true,
             },
         ];
-
-        let pipeline_config = OcrPipeline {
-            items: IdItem::from_vec(vec![OcrPipelineStep::BoxDetection {
-                threshold: 0.5,
-                use_capture_image_as_output: true,
-            }]),
-            active: true,
-            name: "Box Detection".to_string(),
-        };
 
         Self {
             clear_color: Color32::TRANSPARENT,
@@ -64,7 +70,14 @@ impl Default for AppSettings {
             show_history: false,
             show_debug_cursor: false,
             debug_images: ImageDisplay::default(),
-            pipeline_config,
+            pipeline_configs: vec![
+                OcrPipeline::default(),
+                OcrPipeline {
+                    items: vec![],
+                    name: "Full Area Detection".to_string(),
+                },
+            ],
+            selected_pipeline: 0,
             new_step_selected: OcrPipelineStep::ImageProcessing(PreprocessConfig::default()),
             new_step_combobox: vec,
         }
@@ -88,11 +101,39 @@ impl AppSettings {
                 ui.checkbox(&mut self.auto_restart_ocr, "Auto Restart OCR");
             });
 
+            ui.horizontal_wrapped(|ui| {
+                for (i, pipeline) in self.pipeline_configs.iter().enumerate() {
+                    ui.selectable_value(&mut self.selected_pipeline, i, pipeline.name.clone());
+                }
+            });
+
             self.show_ocr_config(ui);
 
             if self.show_pipeline_config {
                 egui::Window::new("OCR Pipeline Config").show(ctx, |ui| {
-                    self.pipeline_config.show(ui);
+                    ui.horizontal(|ui| {
+                        if ui
+                            .button(RichText::new("New Pipeline").color(Color32::GREEN))
+                            .clicked()
+                        {
+                            self.pipeline_configs.push(OcrPipeline::default());
+                            self.selected_pipeline = self.pipeline_configs.len() - 1;
+                        }
+
+                        if self.pipeline_configs.len() > 1 {
+                            if ui
+                                .button(RichText::new("Delete Pipeline").color(Color32::RED))
+                                .clicked()
+                            {
+                                self.pipeline_configs.remove(self.selected_pipeline);
+                                self.selected_pipeline = self.selected_pipeline.saturating_sub(1);
+                            }
+                        }
+                    });
+
+                    ui.separator();
+
+                    self.get_current_pipeline_mut().show(ui);
                     self.show_new_pipeline_step_settings(ui);
                 });
             }
@@ -118,9 +159,8 @@ impl AppSettings {
     fn show_new_pipeline_step_settings(&mut self, ui: &mut Ui) {
         ui.horizontal(|ui| {
             if ui.button("\u{229E}").clicked() {
-                self.pipeline_config
-                    .items
-                    .push_item(self.new_step_selected.clone());
+                let copy_step = self.new_step_selected.clone();
+                self.get_current_pipeline_mut().items.push_item(copy_step);
             };
 
             egui::ComboBox::from_label("Add Step")

@@ -10,8 +10,19 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct OcrPipeline {
     pub items: Vec<IdItem<OcrPipelineStep>>,
-    pub active: bool,
     pub name: String,
+}
+
+impl Default for OcrPipeline {
+    fn default() -> Self {
+        Self {
+            items: IdItem::from_vec(vec![OcrPipelineStep::BoxDetection {
+                threshold: 0.5,
+                use_capture_image_as_output: true,
+            }]),
+            name: "Box Detection".to_string(),
+        }
+    }
 }
 
 impl OcrPipeline {
@@ -28,7 +39,7 @@ impl OcrPipeline {
 
                 ui.checkbox(&mut item.active, "");
 
-                item.show(ui);
+                item.show(ui, state.index);
 
                 if ui
                     .button(RichText::new("\u{1F5D9}").color(Color32::RED))
@@ -44,9 +55,11 @@ impl OcrPipeline {
 }
 
 impl IdItem<OcrPipelineStep> {
-    pub fn show(&mut self, ui: &mut Ui) {
+    pub fn show(&mut self, ui: &mut Ui, index: usize) {
         if self.item.has_parameters() {
-            CollapsingHeader::new((&self.item).name()).show(ui, |ui| self.item.show(ui));
+            CollapsingHeader::new((&self.item).name())
+                .id_salt(index)
+                .show(ui, |ui| self.item.show(ui));
         } else {
             ui.label((&self.item).name());
         }

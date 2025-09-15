@@ -146,8 +146,9 @@ fn create_texture(
 }
 
 fn remove_pipeline_step(state: &mut OcrApp, index: usize) {
-    if state.settings.pipeline_config.items.len() > index {
-        state.settings.pipeline_config.items.remove(index);
+    let current_pipeline = state.settings.get_current_pipeline_mut();
+    if current_pipeline.items.len() > index {
+        current_pipeline.items.remove(index);
     }
     if state.settings.debug_images.image_handles.len() > index {
         state.settings.debug_images.image_handles.remove(index);

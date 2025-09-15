@@ -130,7 +130,7 @@ impl BackgroundRect {
             y: global_rect.min.y as i32,
             width: global_rect.width() as u32,
             height: global_rect.height() as u32,
-            pipeline: OcrPipeline(settings.pipeline_config.items.clone()),
+            pipeline: OcrPipeline(settings.get_current_pipeline().items.clone()),
         };
 
         let Ok(image) = screenshot_parameter.get_screenshot() else {
