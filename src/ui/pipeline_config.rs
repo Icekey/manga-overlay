@@ -16,6 +16,10 @@ pub struct OcrPipeline {
 
 impl OcrPipeline {
     pub fn show(&mut self, ui: &mut Ui) {
+        ui.horizontal(|ui| {
+            ui.label("Name:");
+            ui.add(egui::TextEdit::singleline(&mut self.name));
+        });
         dnd(ui, "dnd_pipeline").show_vec(&mut self.items, |ui, item, handle, state| {
             ui.horizontal(|ui| {
                 handle.ui(ui, |ui| {

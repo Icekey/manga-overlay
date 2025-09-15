@@ -19,6 +19,7 @@ pub struct AppSettings {
     pub hover_delay_ms: u64,
 
     //OCR Settings
+    pub show_pipeline_config: bool,
     pub show_statistics: bool,
     pub show_history: bool,
     pub show_debug_cursor: bool,
@@ -58,6 +59,7 @@ impl Default for AppSettings {
             auto_restart_ocr: true,
             auto_restart_delay_ms: 1000,
             hover_delay_ms: 1000,
+            show_pipeline_config: false,
             show_statistics: false,
             show_history: false,
             show_debug_cursor: false,
@@ -77,8 +79,6 @@ impl AppSettings {
             .default_width(50.0)
             .resizable(false);
         window.show(ctx, |ui| {
-            self.show_window_settings(ui);
-
             ui.horizontal(|ui| {
                 Backend::MangaOcr.get_status_ui(ui);
                 let enabled = Backend::MangaOcr.get_status(ui) == BackendStatus::Ready;
@@ -90,10 +90,14 @@ impl AppSettings {
 
             self.show_ocr_config(ui);
 
-            CollapsingHeader::new("OCR Pipeline Config").show(ui, |ui| {
-                self.pipeline_config.show(ui);
-                self.show_new_pipeline_step_settings(ui);
-            });
+            if self.show_pipeline_config {
+                egui::Window::new("OCR Pipeline Config").show(ctx, |ui| {
+                    self.pipeline_config.show(ui);
+                    self.show_new_pipeline_step_settings(ui);
+                });
+            }
+
+            self.show_window_settings(ui);
 
             self.show_debug_config(ui);
 
@@ -130,26 +134,28 @@ impl AppSettings {
     }
 
     fn show_window_settings(&mut self, ui: &mut Ui) {
-        egui::widgets::global_theme_preference_buttons(ui);
+        CollapsingHeader::new("Window Config").show(ui, |ui| {
+            egui::widgets::global_theme_preference_buttons(ui);
 
-        ui.horizontal(|ui| {
-            ui.label("Zoom Factor:");
-            ui.selectable_value(&mut self.zoom_factor, 1.0, "100%");
-            ui.selectable_value(&mut self.zoom_factor, 1.5, "150%");
-            ui.selectable_value(&mut self.zoom_factor, 2.0, "200%");
-            ui.selectable_value(&mut self.zoom_factor, 2.5, "250%");
-            ui.selectable_value(&mut self.zoom_factor, 3.0, "300%");
+            ui.horizontal(|ui| {
+                ui.label("Zoom Factor:");
+                ui.selectable_value(&mut self.zoom_factor, 1.0, "100%");
+                ui.selectable_value(&mut self.zoom_factor, 1.5, "150%");
+                ui.selectable_value(&mut self.zoom_factor, 2.0, "200%");
+                ui.selectable_value(&mut self.zoom_factor, 2.5, "250%");
+                ui.selectable_value(&mut self.zoom_factor, 3.0, "300%");
+            });
+
+            ui.checkbox(&mut self.mouse_passthrough, "Mouse Passthrough");
+
+            if ui.checkbox(&mut self.decorations, "Decorations").clicked() {
+                ui.ctx()
+                    .send_viewport_cmd(egui::ViewportCommand::Decorations(self.decorations));
+            }
+
+            ui.checkbox(&mut self.show_history, "Show History");
+            ui.checkbox(&mut self.show_statistics, "Show Statistics");
         });
-
-        ui.checkbox(&mut self.mouse_passthrough, "Mouse Passthrough");
-
-        if ui.checkbox(&mut self.decorations, "Decorations").clicked() {
-            ui.ctx()
-                .send_viewport_cmd(egui::ViewportCommand::Decorations(self.decorations));
-        }
-
-        ui.checkbox(&mut self.show_history, "Show History");
-        ui.checkbox(&mut self.show_statistics, "Show Statistics");
     }
 
     fn show_ocr_config(&mut self, ui: &mut egui::Ui) {
@@ -166,6 +172,8 @@ impl AppSettings {
                     egui::Slider::new(&mut self.hover_delay_ms, 0..=5000).text("Hover Delay (ms)"),
                 );
             });
+
+            ui.checkbox(&mut self.show_pipeline_config, "Show OCR Pipeline Config");
         });
     }
 
