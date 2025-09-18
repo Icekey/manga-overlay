@@ -21,15 +21,13 @@ pub struct OcrApp {
 
 impl OcrApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        let ocr_app: Self = if let Some(storage) = cc.storage {
+        let mut ocr_app: Self = if let Some(storage) = cc.storage {
             let storage: Self = eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
 
             let ctx = &cc.egui_ctx;
 
             init_font(ctx);
-            ctx.send_viewport_cmd(egui::ViewportCommand::Decorations(
-                storage.settings.decorations,
-            ));
+            emit_event(Event::UpdateDecorations(storage.settings.decorations));
 
             storage
         } else {
@@ -40,6 +38,8 @@ impl OcrApp {
         init_kanji_statistic_updater();
 
         Self::init_backends();
+
+        ocr_app.settings.shortcut.init();
 
         ocr_app
     }
@@ -89,6 +89,8 @@ impl OcrApp {
 impl eframe::App for OcrApp {
     /// Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
+        self.settings.shortcut.check_events();
+
         for event in get_events() {
             event.handle_event(ctx, self);
         }

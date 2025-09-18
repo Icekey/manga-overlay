@@ -4,11 +4,13 @@ use crate::event::event::{Event, emit_event};
 use crate::ui::id_item::IdItemVec;
 use crate::ui::image_display::ImageDisplay;
 use crate::ui::pipeline_config::OcrPipeline;
+use crate::ui::shortcut::ShortcutManager;
 use egui::{Button, CollapsingHeader, Color32, Id, RichText, Spinner, Ui};
 
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)]
 pub struct AppSettings {
+    pub shortcut: ShortcutManager,
     pub clear_color: Color32,
     pub mouse_passthrough: bool,
     pub decorations: bool,
@@ -58,6 +60,7 @@ impl Default for AppSettings {
         ];
 
         Self {
+            shortcut: ShortcutManager::default(),
             clear_color: Color32::TRANSPARENT,
             mouse_passthrough: false,
             decorations: false,
@@ -139,6 +142,7 @@ impl AppSettings {
             }
 
             self.show_window_settings(ui);
+            self.shortcut.show_config(ui);
 
             self.show_debug_config(ui);
 
@@ -189,8 +193,7 @@ impl AppSettings {
             ui.checkbox(&mut self.mouse_passthrough, "Mouse Passthrough");
 
             if ui.checkbox(&mut self.decorations, "Decorations").clicked() {
-                ui.ctx()
-                    .send_viewport_cmd(egui::ViewportCommand::Decorations(self.decorations));
+                emit_event(Event::UpdateDecorations(self.decorations));
             }
 
             ui.checkbox(&mut self.show_history, "Show History");

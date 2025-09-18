@@ -7,6 +7,7 @@ use crate::ui::settings::{Backend, BackendStatus};
 use eframe::epaint::textures::TextureOptions;
 use eframe::epaint::{ColorImage, TextureHandle};
 use egui::{Context, Id, Memory};
+use global_hotkey::hotkey::HotKey;
 use image::{DynamicImage, EncodableLayout};
 use log::debug;
 use std::cmp::max;
@@ -26,6 +27,11 @@ pub enum Event {
     ResetOcrStartTime,
     UpdateImageDisplay(usize, usize, String, Option<DynamicImage>),
     RemovePipelineStep(usize),
+    UpdateDecorations(bool),
+    ToggleDecorations,
+    UpdateMousePassthrough(bool),
+    ToggleMousePassthrough,
+    UpdateShortcut(usize, HotKey),
 }
 
 impl Event {
@@ -44,6 +50,15 @@ impl Event {
                 update_image_display(ctx, state, index, max_index, label, image)
             }
             Event::RemovePipelineStep(index) => remove_pipeline_step(state, index),
+            Event::UpdateDecorations(data) => update_decorations(ctx, state, data),
+            Event::ToggleDecorations => update_decorations(ctx, state, !state.settings.decorations),
+            Event::UpdateMousePassthrough(data) => update_mouse_passthrough(ctx, state, data),
+            Event::ToggleMousePassthrough => {
+                update_mouse_passthrough(ctx, state, !state.settings.mouse_passthrough);
+            }
+            Event::UpdateShortcut(index, hotkey) => {
+                state.settings.shortcut.update_hotkey(index, hotkey);
+            }
         }
     }
 }
@@ -153,6 +168,16 @@ fn remove_pipeline_step(state: &mut OcrApp, index: usize) {
     if state.settings.debug_images.image_handles.len() > index {
         state.settings.debug_images.image_handles.remove(index);
     }
+}
+
+fn update_mouse_passthrough(ctx: &Context, state: &mut OcrApp, mouse_passthrough: bool) {
+    state.settings.mouse_passthrough = mouse_passthrough;
+    ctx.send_viewport_cmd(egui::ViewportCommand::MousePassthrough(mouse_passthrough));
+}
+
+fn update_decorations(ctx: &Context, state: &mut OcrApp, decorations: bool) {
+    state.settings.decorations = decorations;
+    ctx.send_viewport_cmd(egui::ViewportCommand::Decorations(decorations));
 }
 
 static EVENT_HANDLER: LazyLock<Arc<Mutex<Vec<Event>>>> =
