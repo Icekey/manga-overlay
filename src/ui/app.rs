@@ -37,14 +37,23 @@ impl OcrApp {
         init_history_updater();
         init_kanji_statistic_updater();
 
-        Self::init_backends();
-
-        ocr_app.settings.shortcut.init();
+        ocr_app.init();
 
         ocr_app
     }
 
-    pub fn init_backends() {
+    pub fn init(&mut self) {
+        Self::init_backends();
+        self.settings.shortcut.init();
+    }
+
+    pub fn reset(&mut self) {
+        self.settings.shortcut.unregister();
+        *self = OcrApp::default();
+        self.init()
+    }
+
+    fn init_backends() {
         TASK_TRACKER.spawn(async move {
             let init1 = TASK_TRACKER.spawn(async { LazyLock::force(&MANGA_OCR) });
             let init2 = TASK_TRACKER.spawn(async { LazyLock::force(&DETECT_STATE) });

@@ -14,8 +14,10 @@ use std::cmp::max;
 use std::ops::Add;
 use std::sync::{Arc, LazyLock, Mutex};
 use std::time::Duration;
+use subenum::subenum;
 use tokio::time::Instant;
 
+#[subenum(ShortcutEvent(derive(serde::Deserialize, serde::Serialize)))]
 #[derive(PartialEq, Debug, Clone)]
 pub enum Event {
     UpdateScreenshotResult(ScreenshotResult),
@@ -28,8 +30,10 @@ pub enum Event {
     UpdateImageDisplay(usize, usize, String, Option<DynamicImage>),
     RemovePipelineStep(usize),
     UpdateDecorations(bool),
+    #[subenum(ShortcutEvent)]
     ToggleDecorations,
     UpdateMousePassthrough(bool),
+    #[subenum(ShortcutEvent)]
     ToggleMousePassthrough,
     UpdateShortcut(usize, HotKey),
 }
@@ -108,8 +112,7 @@ fn update_backend_status(ctx: &Context, backend: Backend, backend_status: Backen
 
 fn reset_ui(ctx: &Context, state: &mut OcrApp) {
     ctx.memory_mut(|x| *x = Memory::default());
-    *state = OcrApp::default();
-    OcrApp::init_backends();
+    state.reset();
 }
 
 fn reset_ocr_start_time(state: &mut OcrApp) {

@@ -42,6 +42,7 @@ rusqlite = { version = "0.32.0", features = ["bundled"] }
 hf-hub = "0.4.2"
 egui_dnd = "0.13.0"
 global-hotkey = { version = "0.7.0", features = ["serde"] }
+subenum = "1.1.2"
 
 
 
