@@ -1,13 +1,13 @@
 use crate::OcrApp;
-use crate::event::event::Event::UpdateMousePassthrough;
-use crate::event::event::emit_event;
 use anyhow::Result;
 use egui::{Color32, Context, Id, Order, Pos2, Rect, Vec2};
 use enigo::{Enigo, Mouse, Settings as EnigoSettings};
 
 impl OcrApp {
     pub fn update_mouse_passthrough(&self, ctx: &Context) {
-        emit_event(UpdateMousePassthrough(self.should_mouse_passthrough(ctx)));
+        ctx.send_viewport_cmd(egui::ViewportCommand::MousePassthrough(
+            self.should_mouse_passthrough(ctx),
+        ));
     }
 
     pub fn draw_mouse_position(&self, ctx: &Context) {

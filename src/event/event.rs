@@ -1,9 +1,9 @@
-use crate::OcrApp;
 use crate::action::ScreenshotResult;
 use crate::database::{HistoryData, KanjiStatistic};
 use crate::jpn::JpnData;
 use crate::ui::image_display::ImageWrapper;
 use crate::ui::settings::{Backend, BackendStatus};
+use crate::OcrApp;
 use eframe::epaint::textures::TextureOptions;
 use eframe::epaint::{ColorImage, TextureHandle};
 use egui::{Context, Id, Memory};
@@ -14,10 +14,11 @@ use std::cmp::max;
 use std::ops::Add;
 use std::sync::{Arc, LazyLock, Mutex};
 use std::time::Duration;
+use strum::EnumIter;
 use subenum::subenum;
 use tokio::time::Instant;
 
-#[subenum(ShortcutEvent(derive(serde::Deserialize, serde::Serialize)))]
+#[subenum(ShortcutEvent(derive(serde::Deserialize, serde::Serialize, EnumIter)))]
 #[derive(PartialEq, Debug, Clone)]
 pub enum Event {
     UpdateScreenshotResult(ScreenshotResult),
@@ -35,7 +36,11 @@ pub enum Event {
     UpdateMousePassthrough(bool),
     #[subenum(ShortcutEvent)]
     ToggleMousePassthrough,
-    UpdateShortcut(usize, HotKey),
+    UpdateShortcut(ShortcutEvent, HotKey),
+    #[subenum(ShortcutEvent)]
+    ToggleMinimized,
+    #[subenum(ShortcutEvent)]
+    QuickAreaPickMode,
 }
 
 impl Event {
@@ -56,15 +61,27 @@ impl Event {
             Event::RemovePipelineStep(index) => remove_pipeline_step(state, index),
             Event::UpdateDecorations(data) => update_decorations(ctx, state, data),
             Event::ToggleDecorations => update_decorations(ctx, state, !state.settings.decorations),
-            Event::UpdateMousePassthrough(data) => update_mouse_passthrough(ctx, state, data),
+            Event::UpdateMousePassthrough(data) => update_mouse_passthrough(state, data),
             Event::ToggleMousePassthrough => {
-                update_mouse_passthrough(ctx, state, !state.settings.mouse_passthrough);
+                update_mouse_passthrough(state, !state.settings.mouse_passthrough);
             }
-            Event::UpdateShortcut(index, hotkey) => {
-                state.settings.shortcut.update_hotkey(index, hotkey);
+            Event::UpdateShortcut(event, hotkey) => {
+                state.settings.shortcut.update_hotkey(event, hotkey);
+            }
+            Event::ToggleMinimized => {
+                let is_minimized = is_minimized(ctx);
+                ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(!is_minimized));
+            }
+            Event::QuickAreaPickMode => {
+                update_mouse_passthrough(state, false);
+                state.settings.quick_area_pick_mode = !state.settings.quick_area_pick_mode
             }
         }
     }
+}
+
+pub fn is_minimized(ctx: &Context) -> bool {
+    ctx.input(|i| i.viewport().minimized).unwrap_or_default()
 }
 
 fn update_screenshot_result(ctx: &Context, state: &mut OcrApp, data: ScreenshotResult) {
@@ -173,9 +190,11 @@ fn remove_pipeline_step(state: &mut OcrApp, index: usize) {
     }
 }
 
-fn update_mouse_passthrough(ctx: &Context, state: &mut OcrApp, mouse_passthrough: bool) {
+fn update_mouse_passthrough(state: &mut OcrApp, mouse_passthrough: bool) {
+    if mouse_passthrough {
+        state.settings.quick_area_pick_mode = false;
+    }
     state.settings.mouse_passthrough = mouse_passthrough;
-    ctx.send_viewport_cmd(egui::ViewportCommand::MousePassthrough(mouse_passthrough));
 }
 
 fn update_decorations(ctx: &Context, state: &mut OcrApp, decorations: bool) {
@@ -197,7 +216,7 @@ pub fn get_events() -> Vec<Event> {
 
 #[cfg(test)]
 mod tests {
-    use crate::event::event::{Event, emit_event, get_events};
+    use crate::event::event::{emit_event, get_events, Event};
 
     #[test]
     fn emit_event_test() {

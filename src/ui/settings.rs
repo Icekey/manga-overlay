@@ -1,6 +1,6 @@
 use super::background_rect::start_ocr_id;
 use crate::action::OcrPipelineStep;
-use crate::event::event::{Event, emit_event};
+use crate::event::event::{emit_event, Event};
 use crate::ui::id_item::IdItemVec;
 use crate::ui::image_display::ImageDisplay;
 use crate::ui::pipeline_config::OcrPipeline;
@@ -33,6 +33,8 @@ pub struct AppSettings {
 
     pub new_step_selected: OcrPipelineStep,
     pub new_step_combobox: Vec<OcrPipelineStep>,
+
+    pub quick_area_pick_mode: bool,
 }
 
 impl AppSettings {
@@ -61,7 +63,7 @@ impl Default for AppSettings {
 
         Self {
             shortcut: ShortcutManager::default(),
-            clear_color: Color32::TRANSPARENT,
+            clear_color: Color32::from_black_alpha(50),
             mouse_passthrough: false,
             decorations: false,
             zoom_factor: 1.5,
@@ -83,6 +85,7 @@ impl Default for AppSettings {
             selected_pipeline: 0,
             new_step_selected: OcrPipelineStep::ImageProcessing(PreprocessConfig::default()),
             new_step_combobox: vec,
+            quick_area_pick_mode: false,
         }
     }
 }

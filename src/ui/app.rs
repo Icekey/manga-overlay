@@ -6,6 +6,7 @@ use crate::detect::comictextdetector::DETECT_STATE;
 use crate::event::event::{Event, emit_event, get_events};
 use crate::ocr::manga_ocr::MANGA_OCR;
 use crate::ui::shutdown::{TASK_TRACKER, shutdown_tasks};
+use eframe::epaint::Color32;
 use egui::Context;
 use futures::join;
 use std::sync::LazyLock;
@@ -115,7 +116,7 @@ impl eframe::App for OcrApp {
     }
 
     fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
-        self.settings.clear_color.to_normalized_gamma_f32()
+        Color32::TRANSPARENT.to_normalized_gamma_f32()
     }
 }
 

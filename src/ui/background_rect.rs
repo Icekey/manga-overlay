@@ -1,6 +1,6 @@
 use super::{mouse_hover::get_frame_rect, screenshot_result_ui::scale_rect, settings::AppSettings};
-use crate::action::{OcrPipeline, ScreenshotParameter, ScreenshotResult, run_ocr};
-use crate::event::event::{Event, emit_event};
+use crate::action::{run_ocr, OcrPipeline, ScreenshotParameter, ScreenshotResult};
+use crate::event::event::{emit_event, is_minimized, Event};
 use crate::ui::shutdown::TASK_TRACKER;
 use eframe::epaint::StrokeKind;
 use egui::{Color32, Context, Id, Pos2, Rect, Sense, Vec2};
@@ -42,9 +42,11 @@ impl BackgroundRect {
     pub fn show(&mut self, ctx: &Context, settings: &AppSettings) {
         self.check_start_ocr(ctx, settings);
 
-        let bg_response = self.draw_background(ctx);
+        let bg_response =
+            self.draw_background(ctx, settings.mouse_passthrough, settings.clear_color);
 
-        if !settings.mouse_passthrough && self.update_drag(&bg_response.response, ctx.zoom_factor())
+        if !settings.mouse_passthrough
+            && self.update_drag(settings, &bg_response.response, ctx.zoom_factor())
         {
             self.start_ocr_at = Some(Instant::now());
         }
@@ -65,13 +67,17 @@ impl BackgroundRect {
             self.hide_ocr_rects = false;
         }
 
-        if is_start_ocr(ctx) || self.should_auto_restart(settings) {
+        if is_start_ocr(ctx) || self.should_auto_restart(ctx, settings) {
             self.start_ocr_at = None;
             self.hide_ocr_rects = true;
         }
     }
 
-    fn should_auto_restart(&mut self, settings: &AppSettings) -> bool {
+    fn should_auto_restart(&mut self, ctx: &Context, settings: &AppSettings) -> bool {
+        if is_minimized(ctx) {
+            return false;
+        }
+
         if let Some(instant) = self.start_ocr_at {
             let not_hovering = self.last_ocr_rect_hover_at.map_or(true, |x| {
                 x.elapsed() >= Duration::from_millis(settings.hover_delay_ms)
@@ -85,7 +91,12 @@ impl BackgroundRect {
 }
 
 impl BackgroundRect {
-    fn update_drag(&mut self, response: &egui::Response, zoom_factor: f32) -> bool {
+    fn update_drag(
+        &mut self,
+        settings: &AppSettings,
+        response: &egui::Response,
+        zoom_factor: f32,
+    ) -> bool {
         if response.drag_started() {
             if let Some(mpos) = response.interact_pointer_pos() {
                 self.start_pos = mpos * zoom_factor;
@@ -99,6 +110,9 @@ impl BackgroundRect {
         }
 
         if response.drag_stopped() {
+            if settings.quick_area_pick_mode {
+                emit_event(Event::UpdateMousePassthrough(true));
+            }
             return true;
         }
 
@@ -154,7 +168,12 @@ impl BackgroundRect {
         });
     }
 
-    fn draw_background(&mut self, ctx: &Context) -> egui::InnerResponse<()> {
+    fn draw_background(
+        &mut self,
+        ctx: &Context,
+        mouse_passthrough: bool,
+        clear_color: Color32,
+    ) -> egui::InnerResponse<()> {
         let frame_rect = get_frame_rect(ctx);
         let rect = self.get_unscaled_rect();
 
@@ -169,8 +188,31 @@ impl BackgroundRect {
             .sense(Sense::drag())
             .fixed_pos(Pos2::ZERO)
             .show(ctx, |ui| {
-                ui.set_width(frame_rect.width());
-                ui.set_height(frame_rect.height());
+                let width = frame_rect.width();
+                ui.set_width(width);
+                let height = frame_rect.height();
+                ui.set_height(height);
+
+                if !mouse_passthrough {
+                    //Draw Background Rect
+                    let top_rect = Rect::from_two_pos(Pos2::ZERO, Pos2::new(width, rect.min.y));
+                    let left_rect = Rect::from_two_pos(
+                        Pos2::new(0.0, rect.min.y),
+                        Pos2::new(rect.min.x, rect.max.y),
+                    );
+                    let right_rect = Rect::from_two_pos(
+                        Pos2::new(rect.max.x, rect.min.y),
+                        Pos2::new(frame_rect.max.x, rect.max.y),
+                    );
+                    let bottom_rect = Rect::from_two_pos(
+                        Pos2::new(0.0, rect.max.y),
+                        Pos2::new(frame_rect.max.x, frame_rect.max.y),
+                    );
+                    ui.painter().rect_filled(top_rect, 0.0, clear_color);
+                    ui.painter().rect_filled(left_rect, 0.0, clear_color);
+                    ui.painter().rect_filled(right_rect, 0.0, clear_color);
+                    ui.painter().rect_filled(bottom_rect, 0.0, clear_color);
+                }
 
                 ui.painter().rect(
                     rect,
