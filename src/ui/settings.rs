@@ -1,6 +1,6 @@
 use super::background_rect::start_ocr_id;
 use crate::action::OcrPipelineStep;
-use crate::event::event::{emit_event, Event};
+use crate::event::event::{Event, emit_event};
 use crate::ui::id_item::IdItemVec;
 use crate::ui::image_display::ImageDisplay;
 use crate::ui::pipeline_config::OcrPipeline;
@@ -57,6 +57,7 @@ impl Default for AppSettings {
             OcrPipelineStep::ImageProcessing(PreprocessConfig::default()),
             OcrPipelineStep::BoxDetection {
                 threshold: 0.5,
+                max_box_count: 10,
                 use_capture_image_as_output: true,
             },
         ];

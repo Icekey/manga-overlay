@@ -1,6 +1,6 @@
 use super::{mouse_hover::get_frame_rect, screenshot_result_ui::scale_rect, settings::AppSettings};
-use crate::action::{run_ocr, OcrPipeline, ScreenshotParameter, ScreenshotResult};
-use crate::event::event::{emit_event, is_minimized, Event};
+use crate::action::{OcrPipeline, ScreenshotParameter, ScreenshotResult, run_ocr};
+use crate::event::event::{Event, emit_event, is_minimized};
 use crate::ui::shutdown::TASK_TRACKER;
 use eframe::epaint::StrokeKind;
 use egui::{Color32, Context, Id, Pos2, Rect, Sense, Vec2};

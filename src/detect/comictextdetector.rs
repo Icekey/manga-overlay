@@ -6,6 +6,7 @@ use anyhow::Result;
 use image::imageops::FilterType;
 use image::{DynamicImage, GenericImageView};
 use imageproc::rect::Rect;
+use itertools::Itertools;
 use log::{debug, error};
 use ndarray::Array4;
 use ort::session::Session;
@@ -126,6 +127,10 @@ impl Boxes {
         self.x + self.w / 2.0
     }
 
+    pub fn get_area(&self) -> f32 {
+        self.w * self.h
+    }
+
     fn overlaps(&self, other: &Boxes) -> bool {
         // if rectangle has area 0, no overlap
         if self.get_left() == self.get_right()
@@ -206,6 +211,17 @@ pub fn combine_overlapping_rects(boxes: Vec<Boxes>) -> Vec<Boxes> {
     }
 
     combined_boxes
+}
+
+pub fn filter_rects(boxes: Vec<Boxes>, max_box_count: usize) -> Vec<Boxes> {
+    boxes
+        .into_iter()
+        .sorted_by(|a, b| {
+            f32::total_cmp(&b.get_area(), &a.get_area())
+                .then_with(|| f32::total_cmp(&b.confidence, &a.confidence))
+        })
+        .take(max_box_count)
+        .collect()
 }
 
 pub fn run_model(model: &Session, threshold: f32, img: &DynamicImage) -> Result<Vec<Boxes>> {

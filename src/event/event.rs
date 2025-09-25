@@ -1,9 +1,9 @@
+use crate::OcrApp;
 use crate::action::ScreenshotResult;
 use crate::database::{HistoryData, KanjiStatistic};
 use crate::jpn::JpnData;
 use crate::ui::image_display::ImageWrapper;
 use crate::ui::settings::{Backend, BackendStatus};
-use crate::OcrApp;
 use eframe::epaint::textures::TextureOptions;
 use eframe::epaint::{ColorImage, TextureHandle};
 use egui::{Context, Id, Memory};
@@ -216,7 +216,7 @@ pub fn get_events() -> Vec<Event> {
 
 #[cfg(test)]
 mod tests {
-    use crate::event::event::{emit_event, get_events, Event};
+    use crate::event::event::{Event, emit_event, get_events};
 
     #[test]
     fn emit_event_test() {

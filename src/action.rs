@@ -1,6 +1,6 @@
 use crate::database;
 use crate::database::{HistoryData, KanjiStatistic};
-use crate::detect::comictextdetector::{DETECT_STATE, combine_overlapping_rects};
+use crate::detect::comictextdetector::{DETECT_STATE, combine_overlapping_rects, filter_rects};
 use crate::event::event::Event::UpdateImageDisplay;
 use crate::event::event::{Event, emit_event};
 use crate::jpn::{JpnData, dict, get_jpn_data};
@@ -35,6 +35,7 @@ impl Default for OcrPipeline {
             OcrPipelineStep::ImageProcessing(PreprocessConfig::default()),
             OcrPipelineStep::BoxDetection {
                 threshold: 0.08,
+                max_box_count: 10,
                 use_capture_image_as_output: true,
             },
             OcrPipelineStep::OcrStep { backend: MangaOcr },
@@ -132,6 +133,7 @@ pub enum OcrPipelineStep {
     ImageProcessing(PreprocessConfig),
     BoxDetection {
         threshold: f32,
+        max_box_count: usize,
         use_capture_image_as_output: bool,
     },
     OcrStep {
@@ -152,10 +154,11 @@ impl OcrPipelineStep {
                 .collect(),
             OcrPipelineStep::BoxDetection {
                 threshold,
+                max_box_count,
                 use_capture_image_as_output,
             } => images
                 .iter()
-                .map(|image| run_box_detection(image, *threshold))
+                .map(|image| run_box_detection(image, *max_box_count, *threshold))
                 .flatten()
                 .map(|sub_image: SubImage| {
                     if *use_capture_image_as_output {
@@ -196,11 +199,12 @@ fn run_image_processing(sub_image: &SubImage, config: &PreprocessConfig) -> SubI
     }
 }
 
-fn run_box_detection(sub_image: &SubImage, threshold: f32) -> Vec<SubImage> {
+fn run_box_detection(sub_image: &SubImage, max_box_count: usize, threshold: f32) -> Vec<SubImage> {
     let image = &sub_image.image;
 
     let boxes = DETECT_STATE.run_model(image, threshold);
     let boxes = combine_overlapping_rects(boxes);
+    let boxes = filter_rects(boxes, max_box_count);
     boxes
         .iter()
         .map(|x| x.get_rect(image))

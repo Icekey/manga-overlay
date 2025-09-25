@@ -18,6 +18,7 @@ impl Default for OcrPipeline {
         Self {
             items: IdItem::from_vec(vec![OcrPipelineStep::BoxDetection {
                 threshold: 0.5,
+                max_box_count: 10,
                 use_capture_image_as_output: true,
             }]),
             name: "Box Detection".to_string(),
@@ -72,8 +73,11 @@ impl OcrPipelineStep {
             OcrPipelineStep::ImageProcessing(config) => config.show(ui),
             OcrPipelineStep::BoxDetection {
                 threshold,
+                max_box_count,
                 use_capture_image_as_output,
-            } => Self::show_box_detection(ui, threshold, use_capture_image_as_output),
+            } => {
+                Self::show_box_detection(ui, threshold, max_box_count, use_capture_image_as_output)
+            }
             _ => {}
         }
     }
@@ -88,9 +92,11 @@ impl OcrPipelineStep {
     fn show_box_detection(
         ui: &mut Ui,
         threshold: &mut f32,
+        max_box_count: &mut usize,
         use_capture_image_as_output: &mut bool,
     ) {
         ui.add(egui::Slider::new(threshold, 0.0..=1.0).text("Box Threshold"));
+        ui.add(egui::Slider::new(max_box_count, 1..=100).text("Max Box Count"));
         ui.checkbox(
             &mut *use_capture_image_as_output,
             "Use Capture Image Output",

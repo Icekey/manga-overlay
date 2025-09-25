@@ -1,5 +1,5 @@
 use crate::event::event::Event::UpdateShortcut;
-use crate::event::event::{emit_event, Event, ShortcutEvent};
+use crate::event::event::{Event, ShortcutEvent, emit_event};
 use egui::CollapsingHeader;
 use global_hotkey::hotkey::{Code, HotKey, Modifiers};
 use global_hotkey::{GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState};
