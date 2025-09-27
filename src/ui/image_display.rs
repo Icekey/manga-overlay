@@ -1,5 +1,6 @@
 use eframe::epaint::TextureHandle;
 use egui::Slider;
+use std::cmp::min;
 
 #[derive(serde::Deserialize, serde::Serialize, Default)]
 #[serde(default)]
@@ -28,6 +29,8 @@ impl ImageDisplay {
 
         egui::Window::new(title).show(ctx, |ui| {
             let len = self.image_handles.len();
+            self.current_index = min(self.current_index, len.saturating_sub(1));
+
             if let Some(wrapper) = self.image_handles.get(self.current_index) {
                 if len > 1 {
                     ui.horizontal(|ui| {
@@ -44,6 +47,8 @@ impl ImageDisplay {
                 } else {
                     ui.label("No Image");
                 }
+            } else {
+                ui.label("No Data");
             }
         });
     }
