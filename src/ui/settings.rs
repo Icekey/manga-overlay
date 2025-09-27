@@ -5,7 +5,7 @@ use crate::ui::id_item::IdItemVec;
 use crate::ui::image_display::ImageDisplay;
 use crate::ui::pipeline_config::OcrPipeline;
 use crate::ui::shortcut::ShortcutManager;
-use egui::{Button, CollapsingHeader, Color32, Id, RichText, Spinner, Ui};
+use egui::{Button, CollapsingHeader, Color32, Context, Id, RichText, Spinner, Ui};
 
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)]
@@ -64,7 +64,7 @@ impl Default for AppSettings {
 
         Self {
             shortcut: ShortcutManager::default(),
-            clear_color: Color32::from_black_alpha(50),
+            clear_color: Color32::from_black_alpha(128),
             mouse_passthrough: false,
             decorations: false,
             zoom_factor: 1.5,
@@ -95,6 +95,14 @@ impl AppSettings {
     pub(crate) fn show(&mut self, ctx: &egui::Context) {
         self.debug_images.show_image_in_window(ctx, "Debug Image");
 
+        self.show_settings(ctx);
+
+        if self.show_pipeline_config {
+            self.show_pipeline_config(ctx);
+        }
+    }
+
+    fn show_settings(&mut self, ctx: &Context) {
         let window = egui::Window::new("Settings")
             .default_width(50.0)
             .resizable(false);
@@ -108,42 +116,9 @@ impl AppSettings {
                 ui.checkbox(&mut self.auto_restart_ocr, "Auto Restart OCR");
             });
 
-            ui.horizontal_wrapped(|ui| {
-                for (i, pipeline) in self.pipeline_configs.iter().enumerate() {
-                    ui.selectable_value(&mut self.selected_pipeline, i, pipeline.name.clone());
-                }
-            });
+            self.show_pipeline_selector(ui);
 
             self.show_ocr_config(ui);
-
-            if self.show_pipeline_config {
-                egui::Window::new("OCR Pipeline Config").show(ctx, |ui| {
-                    ui.horizontal(|ui| {
-                        if ui
-                            .button(RichText::new("New Pipeline").color(Color32::GREEN))
-                            .clicked()
-                        {
-                            self.pipeline_configs.push(OcrPipeline::default());
-                            self.selected_pipeline = self.pipeline_configs.len() - 1;
-                        }
-
-                        if self.pipeline_configs.len() > 1 {
-                            if ui
-                                .button(RichText::new("Delete Pipeline").color(Color32::RED))
-                                .clicked()
-                            {
-                                self.pipeline_configs.remove(self.selected_pipeline);
-                                self.selected_pipeline = self.selected_pipeline.saturating_sub(1);
-                            }
-                        }
-                    });
-
-                    ui.separator();
-
-                    self.get_current_pipeline_mut().show(ui);
-                    self.show_new_pipeline_step_settings(ui);
-                });
-            }
 
             self.show_window_settings(ui);
             self.shortcut.show_config(ui);
@@ -161,6 +136,46 @@ impl AppSettings {
                     "https://github.com/Icekey/manga-overlay",
                 );
             });
+        });
+    }
+
+    fn show_pipeline_config(&mut self, ctx: &Context) {
+        egui::Window::new("OCR Pipeline Config").show(ctx, |ui| {
+            self.show_pipeline_selector(ui);
+            ui.separator();
+
+            ui.horizontal(|ui| {
+                if ui
+                    .button(RichText::new("New Pipeline").color(Color32::GREEN))
+                    .clicked()
+                {
+                    self.pipeline_configs.push(OcrPipeline::default());
+                    self.selected_pipeline = self.pipeline_configs.len() - 1;
+                }
+
+                if self.pipeline_configs.len() > 1 {
+                    if ui
+                        .button(RichText::new("Delete Pipeline").color(Color32::RED))
+                        .clicked()
+                    {
+                        self.pipeline_configs.remove(self.selected_pipeline);
+                        self.selected_pipeline = self.selected_pipeline.saturating_sub(1);
+                    }
+                }
+            });
+
+            ui.separator();
+
+            self.get_current_pipeline_mut().show(ui);
+            self.show_new_pipeline_step_settings(ui);
+        });
+    }
+
+    fn show_pipeline_selector(&mut self, ui: &mut Ui) {
+        ui.horizontal_wrapped(|ui| {
+            for (i, pipeline) in self.pipeline_configs.iter().enumerate() {
+                ui.selectable_value(&mut self.selected_pipeline, i, pipeline.name.clone());
+            }
         });
     }
 
