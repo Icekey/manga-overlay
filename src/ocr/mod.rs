@@ -29,8 +29,8 @@ impl OcrBackend {
 }
 
 fn run_manga_ocr(images: Vec<&DynamicImage>) -> Result<Vec<BackendResult>> {
-    let model = MANGA_OCR.lock().expect("Manga OCR lock failed");
-    if let Ok(model) = model.as_ref() {
+    let mut model = MANGA_OCR.lock().expect("Manga OCR lock failed");
+    if let Ok(model) = model.as_mut() {
         let result = model.inference(images);
         let result = result.into_iter().map(BackendResult::MangaOcr).collect();
 

@@ -10,6 +10,7 @@ use itertools::Itertools;
 use log::{debug, error};
 use ndarray::Array4;
 use ort::session::Session;
+use ort::value::TensorRef;
 
 const INPUT_WIDTH: f32 = 1024.0;
 const INPUT_HEIGHT: f32 = 1024.0;
@@ -31,8 +32,8 @@ impl DetectState {
     }
 
     pub fn run_model(&self, img: &DynamicImage, threshold: f32) -> Vec<Boxes> {
-        let model = self.session.lock().unwrap();
-        if let Some(model) = model.as_ref() {
+        let mut model = self.session.lock().unwrap();
+        if let Some(model) = model.as_mut() {
             run_model(model, threshold, img).unwrap_or_else(|e| {
                 error!("run_model error: {}", e);
                 vec![]
@@ -52,7 +53,7 @@ pub fn load_model() -> Result<Session> {
     Ok(session)
 }
 
-pub fn detect_boxes(model: &Session, original_img: &DynamicImage) -> Result<Vec<Boxes>> {
+pub fn detect_boxes(model: &mut Session, original_img: &DynamicImage) -> Result<Vec<Boxes>> {
     let mut input = Array4::<f32>::zeros((1, 3, INPUT_WIDTH as usize, INPUT_HEIGHT as usize));
 
     let img = original_img.resize_exact(
@@ -69,11 +70,11 @@ pub fn detect_boxes(model: &Session, original_img: &DynamicImage) -> Result<Vec<
         input[[0, 1, y, x]] = f32::from(g) / 255.;
         input[[0, 2, y, x]] = f32::from(b) / 255.;
     }
-
+    let input = TensorRef::from_array_view(&input)?;
     // let outputs: SessionOutputs = model.run(ort::inputs!["images" => input.view()]?)?;
-    let outputs = model.run(ort::inputs![input]?)?;
+    let outputs = model.run(ort::inputs![input])?;
 
-    let output_blk = outputs.get("blk").unwrap().try_extract_tensor::<f32>()?;
+    let output_blk = outputs.get("blk").unwrap().try_extract_array::<f32>()?;
 
     let rows = output_blk
         .view()
@@ -224,7 +225,7 @@ pub fn filter_rects(boxes: Vec<Boxes>, max_box_count: usize) -> Vec<Boxes> {
         .collect()
 }
 
-pub fn run_model(model: &Session, threshold: f32, img: &DynamicImage) -> Result<Vec<Boxes>> {
+pub fn run_model(model: &mut Session, threshold: f32, img: &DynamicImage) -> Result<Vec<Boxes>> {
     debug!("detect_boxes...");
     let mut boxes = detect_boxes(model, img)?;
 
@@ -241,7 +242,7 @@ mod tests {
 
     #[test]
     fn test_load() {
-        let model = load_model().unwrap();
+        let mut model = load_model().unwrap();
         info!("Model loaded");
 
         vec![0.0, 0.01, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]
@@ -254,7 +255,7 @@ mod tests {
                 let input_path = res_dir.join("input").join("input.jpg");
                 let original_img = image::open(input_path.as_path()).unwrap();
 
-                let _ = run_model(&model, conf, &original_img).unwrap();
+                let _ = run_model(&mut model, conf, &original_img).unwrap();
 
                 let _ = original_img.save(&output);
             });

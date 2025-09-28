@@ -32,7 +32,7 @@ serde_with = "3.3.0"
 strum = { version = "0.27.2", features = ["derive"] }
 scraper = "0.24.0"
 reqwest = "0.12.23"
-ort = { version = "=2.0.0-rc.9", features = ["cuda"] }
+ort = { version = "=2.0.0-rc.10", features = ["cuda"] }
 ndarray = "0.16.1"
 image = "0.25.5"
 imageproc = "0.25.0"

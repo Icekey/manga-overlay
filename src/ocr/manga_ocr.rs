@@ -3,6 +3,7 @@ use hf_hub::api::sync::Api;
 use image::DynamicImage;
 use itertools::Itertools;
 use ndarray::{Array3, Array4, ArrayBase, Axis, Dim, Ix, OwnedRepr, s, stack};
+use ort::value::TensorRef;
 use ort::{inputs, session::Session};
 use serde::{Deserialize, Serialize};
 use std::ops::{Div, Sub};
@@ -105,7 +106,7 @@ impl MangaOCR {
         Ok(Self { model, vocab })
     }
 
-    pub fn inference(&self, images: Vec<&DynamicImage>) -> Vec<KanjiTopResults> {
+    pub fn inference(&mut self, images: Vec<&DynamicImage>) -> Vec<KanjiTopResults> {
         if images.is_empty() {
             return vec![];
         }
@@ -143,7 +144,7 @@ impl MangaOCR {
     }
 
     fn get_token_ids(
-        &self,
+        &mut self,
         batch_size: usize,
         tensor: ArrayBase<OwnedRepr<f32>, Dim<[Ix; 4]>>,
     ) -> anyhow::Result<TokenConfVec> {
@@ -159,15 +160,15 @@ impl MangaOCR {
                 ndarray::Array::from_shape_vec((batch_size, token_ids[0].len()), input_token_ids)
                     .expect("Input Shape is invalid");
             let inputs = inputs! {
-                "image" => tensor.view(),
-                "token_ids" => input,
-            }?;
+                "image" => TensorRef::from_array_view(&tensor)?,
+                "token_ids" => TensorRef::from_array_view(&input)?,
+            };
 
             // Run inference
             let outputs = self.model.run(inputs)?;
 
             // Extract logits from output
-            let logits = outputs["logits"].try_extract_tensor::<f32>()?;
+            let logits = outputs["logits"].try_extract_array::<f32>()?;
 
             // Get last token logits and find argmax
             let logits_view = logits.view();
@@ -265,8 +266,8 @@ mod tests {
         let original_img = image::open(input_path.as_path()).unwrap();
         let images = vec![&original_img];
 
-        let model = MANGA_OCR.lock().unwrap();
-        if let Ok(model) = model.as_ref() {
+        let mut model = MANGA_OCR.lock().unwrap();
+        if let Ok(model) = model.as_mut() {
             let result = model.inference(images);
 
             for data in result.iter() {
