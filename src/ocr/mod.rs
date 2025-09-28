@@ -15,9 +15,11 @@ pub enum OcrBackend {
     MangaOcr,
 }
 
-#[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Default)]
 pub enum BackendResult {
     MangaOcr(KanjiTopResults),
+    #[default]
+    Unknown,
 }
 
 impl OcrBackend {

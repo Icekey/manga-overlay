@@ -1,10 +1,13 @@
-use eframe::epaint::StrokeKind;
-use egui::{Align2, Color32, Id, Pos2, Rect, RichText, Sense, Vec2};
-use std::time::{Duration, Instant};
-
 use super::mouse_hover::get_frame_mouse_position;
 use crate::action::{self, ResultData, ScreenshotResult, get_translation};
+use crate::event::event::Event::UpdateOcrResult;
+use crate::event::event::emit_event;
+use crate::ocr::BackendResult;
 use crate::ui::shutdown::TASK_TRACKER;
+use eframe::epaint::StrokeKind;
+use egui::{Align2, Color32, Context, Id, Pos2, Rect, RichText, Sense, Vec2, Window};
+use itertools::Itertools;
+use std::time::{Duration, Instant};
 
 impl ScreenshotResult {
     pub fn show(&mut self, ctx: &egui::Context, screenshot_rect: &Rect) -> bool {
@@ -30,7 +33,7 @@ impl ScreenshotResult {
 
                     let is_active = contains || rect_is_clicked;
                     if is_active {
-                        show_ocr_info_window(ctx, &rect, result, i);
+                        show_ocr_info_window(ctx, &rect, result, i, rect_is_clicked);
                     }
 
                     let color = if is_active {
@@ -150,7 +153,129 @@ fn is_area_hover_start(ctx: &egui::Context, area_hovered: bool) -> bool {
     !old_area_hovered && area_hovered
 }
 
-fn show_ocr_info_window(ctx: &egui::Context, rect: &Rect, result: &ResultData, index: usize) {
+fn show_ocr_info_window(
+    ctx: &egui::Context,
+    rect: &Rect,
+    result: &ResultData,
+    index: usize,
+    rect_is_clicked: bool,
+) {
+    let window = create_info_window(ctx, rect, result, index);
+
+    window.show(ctx, |ui| {
+        if !result.translation.is_empty() && is_translation_visible(ctx) {
+            ui.label(get_info_text(&result.translation));
+            ui.separator();
+        }
+
+        if rect_is_clicked {
+            let selected_kanji_id = Id::new("selected_kanji_id");
+            let selected_kanji_index: usize = ui
+                .data(|map| map.get_temp(selected_kanji_id))
+                .unwrap_or_default();
+
+            let old_item_spacing = ui.spacing_mut().item_spacing;
+            ui.spacing_mut().item_spacing = Vec2::new(0.0, 0.0);
+
+            let ocr_chars = result.ocr.chars().collect_vec();
+
+            ui.horizontal_wrapped(|ui| {
+                for (index, ocr_char) in ocr_chars.iter().enumerate() {
+                    let mut text = RichText::new(ocr_char.to_string())
+                        .underline()
+                        .size(TEXT_SIZE);
+
+                    if index == selected_kanji_index {
+                        text = text.color(Color32::RED);
+                    }
+
+                    let response = ui.label(text);
+
+                    if response.clicked() {
+                        ui.data_mut(|map| map.insert_temp(selected_kanji_id, index));
+                    }
+                }
+            });
+            ui.spacing_mut().item_spacing = old_item_spacing;
+
+            match &result.backend_result {
+                BackendResult::MangaOcr(top) => {
+                    ui.separator();
+
+                    ui.spacing_mut().item_spacing = Vec2::new(0.0, 0.0);
+
+                    if let Some(kanji_result) = top.get(selected_kanji_index) {
+                        ui.horizontal_wrapped(|ui| {
+                            for kanji_conf in kanji_result.iter() {
+                                let kanji = kanji_conf.kanji.clone();
+                                let mut text = RichText::new(kanji.clone()).size(TEXT_SIZE);
+
+                                if let Some(selected_char) = ocr_chars.get(selected_kanji_index)
+                                    && kanji_conf.kanji.eq(&selected_char.to_string())
+                                {
+                                    text = text.color(Color32::RED);
+                                };
+
+                                let response1 = ui.label(text);
+
+                                if response1.clicked() {
+                                    let updated_ocr = replace_nth_char_safe(
+                                        &result.ocr,
+                                        selected_kanji_index,
+                                        kanji.chars().next().unwrap(),
+                                    );
+
+                                    emit_event(UpdateOcrResult(index, updated_ocr))
+                                }
+                            }
+                        });
+                    }
+                }
+                BackendResult::Unknown => {}
+            }
+        } else {
+            let id = Id::new("Scroll Y");
+            let index = ui.data(|map| map.get_temp(id)).unwrap_or_default();
+            let selected_jpn_data = result.get_jpn_data_with_info_by_index(index);
+            for jpn in &result.jpn {
+                ui.spacing_mut().item_spacing = Vec2::new(0.0, 0.0);
+                ui.horizontal_wrapped(|ui| {
+                    for jpn_data in jpn {
+                        let kanji = jpn_data.get_kanji();
+                        let mut text = get_info_text(&kanji);
+                        if jpn_data.has_kanji_data() {
+                            text = text.underline();
+                        }
+                        if selected_jpn_data == Some(jpn_data) {
+                            text = text.color(Color32::RED);
+                        }
+                        ui.label(text);
+                    }
+                });
+            }
+
+            if let Some(info) = selected_jpn_data {
+                ui.separator();
+                show_jpn_data_info(ui, info);
+                update_kanji_statistic(ui, info);
+            }
+        }
+    });
+}
+
+fn replace_nth_char_safe(s: &str, idx: usize, newchar: char) -> String {
+    s.chars()
+        .enumerate()
+        .map(|(i, c)| if i == idx { newchar } else { c })
+        .collect()
+}
+
+fn create_info_window<'a>(
+    ctx: &'a Context,
+    rect: &'a Rect,
+    result: &'a ResultData,
+    index: usize,
+) -> Window<'a> {
     let right_side = rect.min.x > ctx.screen_rect().width() * 2.0 / 3.0;
 
     let (pivot, default_pos_x) = if right_side {
@@ -178,39 +303,7 @@ fn show_ocr_info_window(ctx: &egui::Context, rect: &Rect, result: &ResultData, i
     if changed_text {
         window = window.current_pos(default_pos);
     }
-
-    window.show(ctx, |ui| {
-        if !result.translation.is_empty() && is_translation_visible(ctx) {
-            ui.label(get_info_text(&result.translation));
-            ui.separator();
-        }
-
-        let id = Id::new("Scroll Y");
-        let index = ui.data(|map| map.get_temp(id)).unwrap_or_default();
-        let selected_jpn_data = result.get_jpn_data_with_info_by_index(index);
-        for jpn in &result.jpn {
-            ui.spacing_mut().item_spacing = Vec2::new(0.0, 0.0);
-            ui.horizontal_wrapped(|ui| {
-                for jpn_data in jpn {
-                    let kanji = jpn_data.get_kanji();
-                    let mut text = get_info_text(&kanji);
-                    if jpn_data.has_kanji_data() {
-                        text = text.underline();
-                    }
-                    if selected_jpn_data == Some(jpn_data) {
-                        text = text.color(Color32::RED);
-                    }
-                    ui.label(text);
-                }
-            });
-        }
-
-        if let Some(info) = selected_jpn_data {
-            ui.separator();
-            show_jpn_data_info(ui, info);
-            update_kanji_statistic(ui, info);
-        }
-    });
+    window
 }
 
 pub fn show_jpn_data_info(ui: &mut egui::Ui, info: &crate::jpn::JpnData) {
@@ -259,8 +352,10 @@ impl KanjiStatisticTimer {
     }
 }
 
+const TEXT_SIZE: f32 = 20.0;
+
 fn get_info_text(text: impl Into<String>) -> RichText {
-    RichText::new(text).size(20.0)
+    RichText::new(text).size(TEXT_SIZE)
 }
 
 impl ResultData {

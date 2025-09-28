@@ -78,6 +78,12 @@ impl BackgroundRect {
             return false;
         }
 
+        let clicked_result_id = Id::new("clicked_result_pos");
+        if ctx.data(|map| map.get_temp::<Pos2>(clicked_result_id).is_some()) {
+            //ocr result rect is selected
+            return false;
+        }
+
         if let Some(instant) = self.start_ocr_at {
             let not_hovering = self.last_ocr_rect_hover_at.map_or(true, |x| {
                 x.elapsed() >= Duration::from_millis(settings.hover_delay_ms)

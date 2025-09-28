@@ -122,12 +122,12 @@ impl MangaOCR {
     fn decode_tokens(&self, token_ids: &TokenConfVec) -> Vec<KanjiTopResults> {
         token_ids
             .iter()
-            .map(|outer| self.get_test(outer))
+            .map(|outer| self.get_kanji_top_results(outer))
             .filter(|x: &KanjiTopResults| !x.is_empty())
             .collect()
     }
 
-    fn get_test(&self, outer: &Vec<Vec<TokenConf>>) -> KanjiTopResults {
+    fn get_kanji_top_results(&self, outer: &Vec<Vec<TokenConf>>) -> KanjiTopResults {
         outer
             .iter()
             .map(|middle| self.convert(middle))

@@ -2,6 +2,7 @@ use crate::OcrApp;
 use crate::action::ScreenshotResult;
 use crate::database::{HistoryData, KanjiStatistic};
 use crate::jpn::JpnData;
+use crate::ocr::BackendResult;
 use crate::ui::image_display::ImageWrapper;
 use crate::ui::settings::{Backend, BackendStatus};
 use eframe::epaint::textures::TextureOptions;
@@ -41,6 +42,7 @@ pub enum Event {
     ToggleMinimized,
     #[subenum(ShortcutEvent)]
     QuickAreaPickMode,
+    UpdateOcrResult(usize, String),
 }
 
 impl Event {
@@ -76,6 +78,16 @@ impl Event {
                 update_mouse_passthrough(state, false);
                 state.settings.quick_area_pick_mode = !state.settings.quick_area_pick_mode
             }
+            Event::UpdateOcrResult(index, ocr) => {
+                if let Some(x) = state
+                    .background_rect
+                    .screenshot_result
+                    .ocr_results
+                    .get_mut(index)
+                {
+                    x.ocr = ocr
+                }
+            }
         }
     }
 }
@@ -90,6 +102,20 @@ fn update_screenshot_result(ctx: &Context, state: &mut OcrApp, data: ScreenshotR
         .unwrap_or(false)
     {
         return;
+    }
+
+    for x in data.ocr_results.iter().map(|x| &x.backend_result) {
+        match x {
+            BackendResult::MangaOcr(top) => {
+                for i in top {
+                    for j in i {
+                        print!("{}", j.kanji)
+                    }
+                    println!();
+                }
+            }
+            BackendResult::Unknown => {}
+        }
     }
 
     let background_rect = &mut state.background_rect;

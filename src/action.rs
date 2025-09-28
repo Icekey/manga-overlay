@@ -273,6 +273,7 @@ async fn get_ocr_results(cutout_results: Vec<(Rect, BackendResult)>) -> Vec<Resu
     for (rect, result) in cutout_results {
         let ocr = match &result {
             BackendResult::MangaOcr(top_results) => get_kanji_top_text(&top_results, 0),
+            _ => None,
         };
         if let Some(x) = ocr {
             futures.push(get_result_data(x, rect, result))
@@ -309,7 +310,7 @@ async fn get_result_data(ocr: String, rect: Rect, result: BackendResult) -> Resu
         ocr,
         translation,
         jpn,
-        backend_result: Some(result),
+        backend_result: result,
     }
 }
 
@@ -338,7 +339,7 @@ pub struct ResultData {
     pub ocr: String,
     pub translation: String,
     pub jpn: Vec<Vec<JpnData>>,
-    pub backend_result: Option<BackendResult>,
+    pub backend_result: BackendResult,
 }
 
 impl std::fmt::Debug for ResultData {
@@ -450,27 +451,25 @@ mod tests {
             .unwrap();
         if let Event::UpdateScreenshotResult(run_ocr) = event {
             for result in &run_ocr.ocr_results {
-                if let Some(result) = &result.backend_result {
-                    match result {
-                        BackendResult::MangaOcr(x) => {
-                            for i in 0..x.len() {
-                                let option = x.get(i).unwrap();
-                                let ocr = KanjiConf::get_ocr(option);
+                match &result.backend_result {
+                    BackendResult::MangaOcr(x) => {
+                        for i in 0..x.len() {
+                            let option = x.get(i).unwrap();
+                            let ocr = KanjiConf::get_ocr(option);
 
-                                dbg!(i, &ocr);
-                            }
+                            dbg!(i, &ocr);
                         }
                     }
+                    _ => {}
                 }
             }
 
             for result in &run_ocr.ocr_results {
-                if let Some(result) = &result.backend_result {
-                    match result {
-                        BackendResult::MangaOcr(x) => {
-                            dbg!(KanjiConf::get_conf_matrix(&x));
-                        }
+                match &result.backend_result {
+                    BackendResult::MangaOcr(x) => {
+                        dbg!(KanjiConf::get_conf_matrix(&x));
                     }
+                    _ => {}
                 }
             }
         }
