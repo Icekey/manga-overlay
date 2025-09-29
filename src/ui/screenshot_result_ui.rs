@@ -16,8 +16,7 @@ impl ScreenshotResult {
         let frame_mouse_position = get_frame_mouse_position(ctx).unwrap_or_default();
         let mut area_hovered = false;
 
-        let clicked_result_id = Id::new("clicked_result_pos");
-        let clicked_result_pos = ctx.data(|x| x.get_temp::<Pos2>(clicked_result_id));
+        let clicked_result_pos = ctx.data(|x| x.get_temp::<Pos2>(get_clicked_result_id()));
 
         for (i, result) in self.ocr_results.iter().enumerate() {
             let rect = result.get_ui_rect(ctx);
@@ -61,9 +60,9 @@ impl ScreenshotResult {
 
             if area.response.secondary_clicked() {
                 if rect_is_clicked {
-                    ctx.data_mut(|x| x.remove_temp::<Pos2>(clicked_result_id));
+                    ctx.data_mut(|x| x.remove_temp::<Pos2>(get_clicked_result_id()));
                 } else {
-                    ctx.data_mut(|x| x.insert_temp(clicked_result_id, frame_mouse_position));
+                    ctx.data_mut(|x| x.insert_temp(get_clicked_result_id(), frame_mouse_position));
                 }
             }
 
@@ -87,6 +86,10 @@ impl ScreenshotResult {
             set_translation_visible(ctx, true);
         }
     }
+}
+
+pub fn get_clicked_result_id() -> Id {
+    Id::new("clicked_result_pos")
 }
 
 fn is_translation_visible(ctx: &egui::Context) -> bool {

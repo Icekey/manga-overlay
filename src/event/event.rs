@@ -1,10 +1,12 @@
 use crate::OcrApp;
 use crate::action::ScreenshotResult;
 use crate::database::{HistoryData, KanjiStatistic};
-use crate::jpn::JpnData;
+use crate::event::event::Event::UpdateJpnData;
+use crate::jpn::{JpnData, get_jpn_data};
 use crate::ocr::BackendResult;
 use crate::ui::image_display::ImageWrapper;
 use crate::ui::settings::{Backend, BackendStatus};
+use crate::ui::shutdown::TASK_TRACKER;
 use eframe::epaint::textures::TextureOptions;
 use eframe::epaint::{ColorImage, TextureHandle};
 use egui::{Context, Id, Memory};
@@ -43,6 +45,7 @@ pub enum Event {
     #[subenum(ShortcutEvent)]
     QuickAreaPickMode,
     UpdateOcrResult(usize, String),
+    UpdateJpnData(usize, Vec<Vec<JpnData>>),
 }
 
 impl Event {
@@ -79,16 +82,39 @@ impl Event {
                 state.settings.quick_area_pick_mode = !state.settings.quick_area_pick_mode
             }
             Event::UpdateOcrResult(index, ocr) => {
-                if let Some(x) = state
-                    .background_rect
-                    .screenshot_result
-                    .ocr_results
-                    .get_mut(index)
-                {
-                    x.ocr = ocr
-                }
+                update_ocr_result(state, index, ocr);
             }
+            Event::UpdateJpnData(index, jpn_data) => update_jpn_data(state, index, jpn_data),
         }
+    }
+}
+
+fn update_ocr_result(state: &mut OcrApp, index: usize, ocr: String) {
+    if let Some(result_data) = state
+        .background_rect
+        .screenshot_result
+        .ocr_results
+        .get_mut(index)
+        && result_data.ocr != ocr
+    {
+        result_data.translation = "".to_string();
+        result_data.ocr = ocr.to_string();
+
+        TASK_TRACKER.spawn(async move {
+            let jpn = get_jpn_data(&ocr).await;
+            emit_event(UpdateJpnData(index, jpn));
+        });
+    }
+}
+
+pub fn update_jpn_data(state: &mut OcrApp, index: usize, jpn_data: Vec<Vec<JpnData>>) {
+    if let Some(result_data) = state
+        .background_rect
+        .screenshot_result
+        .ocr_results
+        .get_mut(index)
+    {
+        result_data.jpn = jpn_data;
     }
 }
 

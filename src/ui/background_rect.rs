@@ -1,6 +1,7 @@
 use super::{mouse_hover::get_frame_rect, screenshot_result_ui::scale_rect, settings::AppSettings};
 use crate::action::{OcrPipeline, ScreenshotParameter, ScreenshotResult, run_ocr};
 use crate::event::event::{Event, emit_event, is_minimized};
+use crate::ui::screenshot_result_ui::get_clicked_result_id;
 use crate::ui::shutdown::TASK_TRACKER;
 use eframe::epaint::StrokeKind;
 use egui::{Color32, Context, Id, Pos2, Rect, Sense, Vec2};
@@ -48,6 +49,8 @@ impl BackgroundRect {
         if !settings.mouse_passthrough
             && self.update_drag(settings, &bg_response.response, ctx.zoom_factor())
         {
+            ctx.data_mut(|map| map.remove_temp::<Pos2>(get_clicked_result_id()));
+
             self.start_ocr_at = Some(Instant::now());
         }
 
@@ -78,8 +81,7 @@ impl BackgroundRect {
             return false;
         }
 
-        let clicked_result_id = Id::new("clicked_result_pos");
-        if ctx.data(|map| map.get_temp::<Pos2>(clicked_result_id).is_some()) {
+        if ctx.data(|map| map.get_temp::<Pos2>(get_clicked_result_id()).is_some()) {
             //ocr result rect is selected
             return false;
         }
