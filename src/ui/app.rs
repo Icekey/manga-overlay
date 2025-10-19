@@ -3,9 +3,10 @@ use super::kanji_history_ui::{HistoryDataUi, init_history_updater};
 use super::kanji_statistic_ui::{KanjiStatisticUi, init_kanji_statistic_updater};
 use super::settings::{AppSettings, Backend, BackendStatus};
 use crate::detect::comictextdetector::DETECT_STATE;
-use crate::event::event::{Event, emit_event, get_events};
+use crate::event::event::{update_backend_status, update_decorations};
 use crate::ocr::manga_ocr::MANGA_OCR;
 use crate::ui::shutdown::{TASK_TRACKER, shutdown_tasks};
+use crate::ui::update_queue::update_state;
 use eframe::epaint::Color32;
 use egui::Context;
 use futures::join;
@@ -28,7 +29,7 @@ impl OcrApp {
             let ctx = &cc.egui_ctx;
 
             init_font(ctx);
-            emit_event(Event::UpdateDecorations(storage.settings.decorations));
+            update_decorations(storage.settings.decorations);
 
             storage
         } else {
@@ -60,14 +61,14 @@ impl OcrApp {
             let init2 = TASK_TRACKER.spawn(async { LazyLock::force(&DETECT_STATE) });
             let (result1, result2) = join!(init1, init2);
 
-            emit_event(Event::UpdateBackendStatus(
+            update_backend_status(
                 Backend::MangaOcr,
                 if result1.is_ok() && result2.is_ok() {
                     BackendStatus::Ready
                 } else {
                     BackendStatus::Error
                 },
-            ));
+            );
         });
     }
 
@@ -101,9 +102,7 @@ impl eframe::App for OcrApp {
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
         self.settings.shortcut.check_events();
 
-        for event in get_events() {
-            event.handle_event(ctx, self);
-        }
+        update_state(ctx, self);
 
         ctx.set_zoom_factor(self.settings.zoom_factor);
 

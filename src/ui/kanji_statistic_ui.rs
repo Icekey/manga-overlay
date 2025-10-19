@@ -5,9 +5,9 @@ use egui_extras::{Column, TableBuilder};
 use tokio::time::sleep;
 
 use super::screenshot_result_ui::show_jpn_data_info;
-use crate::event::event::Event::{UpdateKanjiStatistic, UpdateSelectedJpnData};
-use crate::event::event::emit_event;
+use crate::event::event::{update_kanji_statistic, update_selected_jpn_data};
 use crate::ui::shutdown::TASK_TRACKER;
+use crate::ui::update_queue::enqueue_update;
 use crate::{action, database::KanjiStatistic, jpn::JpnData};
 
 #[derive(serde::Deserialize, serde::Serialize, Default)]
@@ -23,7 +23,7 @@ pub fn init_kanji_statistic_updater() {
         loop {
             let kanji_statistic = action::load_statistic();
 
-            emit_event(UpdateKanjiStatistic(kanji_statistic));
+            enqueue_update(|ctx, app| update_kanji_statistic(ctx, app, kanji_statistic));
             sleep(Duration::from_secs(1)).await;
         }
     });
@@ -87,7 +87,7 @@ impl KanjiStatisticUi {
             let kanji = kanji_statistic.kanji.clone();
             TASK_TRACKER.spawn(async move {
                 if let Some(jpn_data) = action::get_kanji_jpn_data(&kanji).await {
-                    emit_event(UpdateSelectedJpnData(jpn_data));
+                    enqueue_update(|_, app| update_selected_jpn_data(app, jpn_data));
                 };
             });
         }

@@ -1,7 +1,7 @@
 use crate::action::OcrPipelineStep;
-use crate::event::event::Event::RemovePipelineStep;
-use crate::event::event::emit_event;
+use crate::event::event::remove_pipeline_step;
 use crate::ui::id_item::IdItem;
+use crate::ui::update_queue::enqueue_update;
 use eframe::epaint::Color32;
 use egui::{CollapsingHeader, RichText, Ui};
 use egui_dnd::dnd;
@@ -46,7 +46,7 @@ impl OcrPipeline {
                     .button(RichText::new("\u{1F5D9}").color(Color32::RED))
                     .clicked()
                 {
-                    emit_event(RemovePipelineStep(state.index))
+                    enqueue_update(move |_, app| remove_pipeline_step(app, state.index));
                 }
             });
 

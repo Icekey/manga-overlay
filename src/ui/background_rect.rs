@@ -1,6 +1,6 @@
 use super::{mouse_hover::get_frame_rect, screenshot_result_ui::scale_rect, settings::AppSettings};
 use crate::action::{OcrPipeline, ScreenshotParameter, ScreenshotResult, run_ocr};
-use crate::event::event::{Event, emit_event, is_minimized};
+use crate::event::event::{is_minimized, reset_ocr_start_time, update_mouse_passthrough};
 use crate::ui::screenshot_result_ui::get_clicked_result_id;
 use crate::ui::shutdown::TASK_TRACKER;
 use eframe::epaint::StrokeKind;
@@ -119,7 +119,7 @@ impl BackgroundRect {
 
         if response.drag_stopped() {
             if settings.quick_area_pick_mode {
-                emit_event(Event::UpdateMousePassthrough(true));
+                update_mouse_passthrough(true);
             }
             return true;
         }
@@ -161,7 +161,7 @@ impl BackgroundRect {
         };
 
         if are_inputs_unchanged(&ctx, screenshot_parameter.clone(), image.clone()) {
-            emit_event(Event::ResetOcrStartTime);
+            reset_ocr_start_time();
             return;
         }
         ctx.data_mut(|x| x.insert_temp(Id::new("ocr_is_cancelled"), false));
@@ -171,7 +171,7 @@ impl BackgroundRect {
             run_ocr(image, screenshot_parameter.pipeline).await;
 
             if auto_restart {
-                emit_event(Event::ResetOcrStartTime);
+                reset_ocr_start_time();
             }
         });
     }

@@ -1,9 +1,9 @@
 use super::mouse_hover::get_frame_mouse_position;
 use crate::action::{self, ResultData, ScreenshotResult, get_translation};
-use crate::event::event::Event::UpdateOcrResult;
-use crate::event::event::emit_event;
+use crate::event::event::update_ocr_result;
 use crate::ocr::BackendResult;
 use crate::ui::shutdown::TASK_TRACKER;
+use crate::ui::update_queue::enqueue_update;
 use eframe::epaint::StrokeKind;
 use egui::{Align2, Color32, Context, Id, Pos2, Rect, RichText, Sense, Vec2, Window};
 use itertools::Itertools;
@@ -228,7 +228,9 @@ fn show_ocr_info_window(
                                         kanji.chars().next().unwrap(),
                                     );
 
-                                    emit_event(UpdateOcrResult(index, updated_ocr))
+                                    enqueue_update(move |_, app| {
+                                        update_ocr_result(app, index, updated_ocr)
+                                    });
                                 }
                             }
                         });

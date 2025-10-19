@@ -1,10 +1,12 @@
-use crate::event::event::Event::UpdateShortcut;
-use crate::event::event::{Event, ShortcutEvent, emit_event};
+use crate::event::event::{
+    is_minimized, toggle_decorations, toggle_mouse_passthrough, update_mouse_passthrough,
+};
+use crate::ui::update_queue::enqueue_update;
 use egui::CollapsingHeader;
 use global_hotkey::hotkey::{Code, HotKey, Modifiers};
 use global_hotkey::{GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState};
 use std::str::FromStr;
-use strum::IntoEnumIterator;
+use strum::{EnumIter, IntoEnumIterator};
 
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)]
@@ -32,6 +34,14 @@ pub struct Shortcut {
     pub event: ShortcutEvent,
 }
 
+#[derive(serde::Deserialize, serde::Serialize, EnumIter, PartialEq, Debug, Clone)]
+pub enum ShortcutEvent {
+    ToggleDecorations,
+    ToggleMousePassthrough,
+    ToggleMinimized,
+    QuickAreaPickMode,
+}
+
 impl ShortcutEvent {
     pub fn get_label(&self) -> &'static str {
         match self {
@@ -50,6 +60,25 @@ impl ShortcutEvent {
             }
             ShortcutEvent::ToggleMinimized => HotKey::new(Some(Modifiers::SHIFT), Code::KeyM),
             ShortcutEvent::QuickAreaPickMode => HotKey::new(Some(Modifiers::SHIFT), Code::KeyA),
+        }
+    }
+
+    pub fn emit_event(&self) {
+        match self {
+            ShortcutEvent::ToggleDecorations => toggle_decorations(),
+            ShortcutEvent::ToggleMousePassthrough => toggle_mouse_passthrough(),
+            ShortcutEvent::ToggleMinimized => {
+                enqueue_update(|ctx, _| {
+                    let is_minimized = is_minimized(ctx);
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(!is_minimized));
+                });
+            }
+            ShortcutEvent::QuickAreaPickMode => {
+                enqueue_update(|_, app| {
+                    update_mouse_passthrough(false);
+                    app.settings.quick_area_pick_mode = !app.settings.quick_area_pick_mode
+                });
+            }
         }
     }
 }
@@ -99,7 +128,7 @@ impl ShortcutManager {
         {
             for x in self.hotkeys.iter() {
                 if event.id == x.hotkey.id {
-                    emit_event(Event::from(x.event.clone()));
+                    x.event.emit_event();
                     return;
                 }
             }
@@ -136,7 +165,10 @@ impl ShortcutManager {
                     let response = ui.text_edit_singleline(&mut x.hotkey_string);
                     if response.changed() {
                         if let Ok(hotkey) = HotKey::from_str(&x.hotkey_string) {
-                            emit_event(UpdateShortcut(x.event.clone(), hotkey))
+                            let event = x.event.clone();
+                            enqueue_update(move |_, app| {
+                                app.settings.shortcut.update_hotkey(event, hotkey)
+                            });
                         }
                     };
                     if response.lost_focus() {

@@ -29,11 +29,6 @@ pub struct KanjiData {
     pub wk_radicals: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Eq, PartialEq, Debug)]
-pub struct KanjiMap {
-    map: HashMap<char, KanjiData>,
-}
-
 pub fn get_kanji_data(word: char) -> Option<KanjiData> {
     KANJI_MAP.get(&word).cloned()
 }

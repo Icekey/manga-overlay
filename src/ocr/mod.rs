@@ -43,12 +43,14 @@ fn run_manga_ocr(images: Vec<&DynamicImage>) -> Result<Vec<BackendResult>> {
 
 #[cfg(test)]
 mod tests {
+    use egui::Context;
     use log::info;
 
+    use crate::OcrApp;
     use crate::action::{OcrPipeline, ResultData, run_ocr};
-    use crate::event::event::{Event, get_events};
     use crate::ocr::OcrBackend;
     use crate::ocr::OcrBackend::MangaOcr;
+    use crate::ui::update_queue::update_state;
 
     #[test]
     fn ocr_backend_serialize() {
@@ -131,19 +133,18 @@ mod tests {
         let image = image::open("input/input.jpg").expect("Failed to open image");
         run_ocr(image, OcrPipeline::default()).await;
 
-        let event = get_events()
-            .into_iter()
-            .find(|event| matches!(event, Event::UpdateScreenshotResult(_)))
-            .unwrap();
-        if let Event::UpdateScreenshotResult(run_ocr) = event {
-            run_ocr
-                .ocr_results
-                .iter()
-                .zip(expected.iter())
-                .for_each(|(a, b)| {
-                    test_result_data(a, b);
-                });
-        }
+        let ctx = Context::default();
+        let mut app = OcrApp::default();
+        update_state(&ctx, &mut app);
+        let run_ocr = app.background_rect.screenshot_result;
+
+        run_ocr
+            .ocr_results
+            .iter()
+            .zip(expected.iter())
+            .for_each(|(a, b)| {
+                test_result_data(a, b);
+            });
     }
 
     fn test_result_data(a: &ResultData, b: &ResultData) {

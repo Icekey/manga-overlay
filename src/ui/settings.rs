@@ -1,10 +1,11 @@
 use super::background_rect::start_ocr_id;
 use crate::action::OcrPipelineStep;
-use crate::event::event::{Event, emit_event};
+use crate::event::event::{reset_ui, update_decorations};
 use crate::ui::id_item::IdItemVec;
 use crate::ui::image_display::ImageDisplay;
 use crate::ui::pipeline_config::OcrPipeline;
 use crate::ui::shortcut::ShortcutManager;
+use crate::ui::update_queue::enqueue_update;
 use egui::{Button, CollapsingHeader, Color32, Context, Id, RichText, Spinner, Ui};
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -212,7 +213,7 @@ impl AppSettings {
             ui.checkbox(&mut self.mouse_passthrough, "Mouse Passthrough");
 
             if ui.checkbox(&mut self.decorations, "Decorations").clicked() {
-                emit_event(Event::UpdateDecorations(self.decorations));
+                update_decorations(self.decorations);
             }
 
             ui.checkbox(&mut self.show_history, "Show History");
@@ -256,7 +257,7 @@ impl AppSettings {
             ui.checkbox(&mut self.show_debug_cursor, "Show Debug Cursor");
 
             if ui.button("Reset UI").clicked() {
-                emit_event(Event::ResetUi);
+                enqueue_update(reset_ui);
             }
         });
     }

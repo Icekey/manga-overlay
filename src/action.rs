@@ -1,8 +1,6 @@
-use crate::database;
 use crate::database::{HistoryData, KanjiStatistic};
 use crate::detect::comictextdetector::{DETECT_STATE, combine_overlapping_rects, filter_rects};
-use crate::event::event::Event::UpdateImageDisplay;
-use crate::event::event::{Event, emit_event};
+use crate::event::event::{update_backend_status, update_image_display, update_screenshot_result};
 use crate::jpn::{JpnData, dict, get_jpn_data};
 use crate::ocr::OcrBackend::MangaOcr;
 use crate::ocr::manga_ocr::get_kanji_top_text;
@@ -10,7 +8,10 @@ use crate::ocr::{BackendResult, OcrBackend};
 use crate::translation::google::translate;
 use crate::ui::id_item::{IdItem, IdItemVec};
 use crate::ui::settings::{Backend, BackendStatus, PreprocessConfig};
+use crate::ui::update_queue::enqueue_update;
+use crate::{OcrApp, database};
 use ::serde::{Deserialize, Serialize};
+use egui::Context;
 use futures::future::join_all;
 use image::{DynamicImage, GenericImage};
 use imageproc::rect::Rect;
@@ -125,7 +126,9 @@ fn show_debug_image(
         let _ = image.copy_from(dynamic_image, sub_image.x as u32, sub_image.y as u32);
     }
 
-    emit_event(UpdateImageDisplay(index, max_index, label, Some(image)));
+    enqueue_update(move |ctx, app| {
+        update_image_display(ctx, app, index, max_index, label, Some(image))
+    });
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -220,17 +223,11 @@ fn run_box_detection(sub_image: &SubImage, max_box_count: usize, threshold: f32)
 async fn run_ocr_step(images: &Vec<SubImage>, backend: &OcrBackend) -> Vec<SubImage> {
     let images_ref: Vec<&DynamicImage> = images.iter().map(|x| &x.image).collect();
 
-    emit_event(Event::UpdateBackendStatus(
-        Backend::MangaOcr,
-        BackendStatus::Running,
-    ));
+    update_backend_status(Backend::MangaOcr, BackendStatus::Running);
 
     let result: Vec<BackendResult> = backend.run_backend(images_ref).unwrap();
 
-    emit_event(Event::UpdateBackendStatus(
-        Backend::MangaOcr,
-        BackendStatus::Ready,
-    ));
+    update_backend_status(Backend::MangaOcr, BackendStatus::Ready);
 
     let result: Vec<(Rect, BackendResult)> = images
         .iter()
@@ -253,9 +250,9 @@ async fn run_ocr_step(images: &Vec<SubImage>, backend: &OcrBackend) -> Vec<SubIm
         }
     }
 
-    emit_event(Event::UpdateScreenshotResult(ScreenshotResult {
-        ocr_results,
-    }));
+    enqueue_update(|ctx: &Context, state: &mut OcrApp| {
+        update_screenshot_result(ctx, state, ScreenshotResult { ocr_results })
+    });
 
     images.iter().map(|x| x.clone()).collect()
 }
@@ -421,10 +418,12 @@ pub async fn get_kanji_jpn_data(kanji: &str) -> Option<JpnData> {
 
 #[cfg(test)]
 mod tests {
+    use crate::OcrApp;
     use crate::action::{OcrPipeline, run_ocr};
-    use crate::event::event::{Event, get_events};
     use crate::ocr::BackendResult;
     use crate::ocr::manga_ocr::KanjiConf;
+    use crate::ui::update_queue::update_state;
+    use egui::Context;
     use image::DynamicImage;
     use std::path::Path;
 
@@ -445,34 +444,33 @@ mod tests {
 
         run_ocr(DynamicImage::ImageLuma8(filtered), OcrPipeline::default()).await;
 
-        let event = get_events()
-            .into_iter()
-            .find(|event| matches!(event, Event::UpdateScreenshotResult(_)))
-            .unwrap();
-        if let Event::UpdateScreenshotResult(run_ocr) = event {
-            for result in &run_ocr.ocr_results {
-                match &result.backend_result {
-                    BackendResult::MangaOcr(x) => {
-                        for i in 0..x.len() {
-                            let option = x.get(i).unwrap();
-                            let ocr = KanjiConf::get_ocr(option);
+        let ctx = Context::default();
+        let mut app = OcrApp::default();
+        update_state(&ctx, &mut app);
 
-                            dbg!(i, &ocr);
-                        }
-                    }
-                    _ => {}
-                }
-            }
+        let run_ocr = app.background_rect.screenshot_result;
 
-            for result in &run_ocr.ocr_results {
-                match &result.backend_result {
-                    BackendResult::MangaOcr(x) => {
-                        dbg!(KanjiConf::get_conf_matrix(&x));
+        for result in &run_ocr.ocr_results {
+            match &result.backend_result {
+                BackendResult::MangaOcr(x) => {
+                    for i in 0..x.len() {
+                        let option = x.get(i).unwrap();
+                        let ocr = KanjiConf::get_ocr(option);
+
+                        dbg!(i, &ocr);
                     }
-                    _ => {}
                 }
+                _ => {}
             }
         }
-        // dbg!(run_ocr);
+
+        for result in &run_ocr.ocr_results {
+            match &result.backend_result {
+                BackendResult::MangaOcr(x) => {
+                    dbg!(KanjiConf::get_conf_matrix(&x));
+                }
+                _ => {}
+            }
+        }
     }
 }

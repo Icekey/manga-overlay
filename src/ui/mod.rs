@@ -10,3 +10,4 @@ pub mod screenshot_result_ui;
 pub mod settings;
 pub mod shortcut;
 pub mod shutdown;
+pub mod update_queue;

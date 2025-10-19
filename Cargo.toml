@@ -1,6 +1,6 @@
 [package]
 name = "manga_overlay"
-version = "1.2.0"
+version = "1.2.1"
 edition = "2024"
 build = "build.rs"
 
@@ -42,7 +42,6 @@ rusqlite = { version = "0.37.0", features = ["bundled"] }
 hf-hub = "0.4.3"
 egui_dnd = "0.13.0"
 global-hotkey = { version = "0.7.0", features = ["serde"] }
-subenum = "1.1.2"
 
 
 

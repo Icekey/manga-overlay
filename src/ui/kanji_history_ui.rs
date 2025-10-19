@@ -4,8 +4,9 @@ use egui::{CentralPanel, TopBottomPanel};
 use egui_extras::{Column, TableBuilder};
 use tokio::time::sleep;
 
-use crate::event::event::{Event, emit_event};
+use crate::event::event::update_history_data;
 use crate::ui::shutdown::TASK_TRACKER;
+use crate::ui::update_queue::enqueue_update;
 use crate::{action, database::HistoryData};
 
 #[derive(serde::Deserialize, serde::Serialize, Default)]
@@ -18,7 +19,7 @@ pub fn init_history_updater() {
         loop {
             let history_data = action::load_history();
 
-            emit_event(Event::UpdateHistoryData(history_data));
+            enqueue_update(|_, app| update_history_data(app, history_data));
             sleep(Duration::from_secs(1)).await;
         }
     });
