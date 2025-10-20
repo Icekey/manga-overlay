@@ -4,7 +4,7 @@ use crate::ui::id_item::IdItem;
 use crate::ui::update_queue::enqueue_update;
 use eframe::epaint::Color32;
 use egui::{CollapsingHeader, RichText, Ui};
-use egui_dnd::dnd;
+use egui_dnd::{DragDropItem, dnd};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -40,7 +40,7 @@ impl OcrPipeline {
 
                 ui.checkbox(&mut item.active, "");
 
-                item.show(ui, state.index);
+                item.show(ui);
 
                 if ui
                     .button(RichText::new("\u{1F5D9}").color(Color32::RED))
@@ -56,10 +56,10 @@ impl OcrPipeline {
 }
 
 impl IdItem<OcrPipelineStep> {
-    pub fn show(&mut self, ui: &mut Ui, index: usize) {
+    pub fn show(&mut self, ui: &mut Ui) {
         if self.item.has_parameters() {
             CollapsingHeader::new((&self.item).name())
-                .id_salt(index)
+                .id_salt(self.id())
                 .show(ui, |ui| self.item.show(ui));
         } else {
             ui.label((&self.item).name());

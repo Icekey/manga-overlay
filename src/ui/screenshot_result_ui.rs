@@ -281,7 +281,7 @@ fn create_info_window<'a>(
     result: &'a ResultData,
     index: usize,
 ) -> Window<'a> {
-    let right_side = rect.min.x > ctx.screen_rect().width() * 2.0 / 3.0;
+    let right_side = rect.min.x > ctx.content_rect().width() * 2.0 / 3.0;
 
     let (pivot, default_pos_x) = if right_side {
         (Align2::RIGHT_TOP, rect.left() - 3.0)
