@@ -30,21 +30,23 @@ pub fn init_kanji_statistic_updater() {
 }
 
 impl KanjiStatisticUi {
-    pub fn show(&mut self, ctx: &egui::Context) {
-        egui::Window::new("Kanji Statistic").show(ctx, |ui| {
-            SidePanel::left("Kanji Statistic Side Panel").show_inside(ui, |ui| {
-                self.show_table(ui);
-            });
-            TopBottomPanel::bottom("Kanji Statistic invisible bottom panel")
-                .show_separator_line(false)
-                .show_inside(ui, |_| ());
-            CentralPanel::default().show_inside(ui, |ui| {
-                ScrollArea::vertical().show(ui, |ui| {
-                    ui.set_width(600.0);
-                    show_jpn_data_info(ui, &self.selected_jpn_data);
+    pub fn show(&mut self, ctx: &Context, open: &mut bool) {
+        egui::Window::new("Kanji Statistic")
+            .open(open)
+            .show(ctx, |ui| {
+                SidePanel::left("Kanji Statistic Side Panel").show_inside(ui, |ui| {
+                    self.show_table(ui);
+                });
+                TopBottomPanel::bottom("Kanji Statistic invisible bottom panel")
+                    .show_separator_line(false)
+                    .show_inside(ui, |_| ());
+                CentralPanel::default().show_inside(ui, |ui| {
+                    ScrollArea::vertical().show(ui, |ui| {
+                        ui.set_width(600.0);
+                        show_jpn_data_info(ui, &self.selected_jpn_data);
+                    });
                 });
             });
-        });
     }
 
     fn show_table(&mut self, ui: &mut egui::Ui) {

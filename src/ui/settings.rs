@@ -22,9 +22,6 @@ pub struct AppSettings {
     pub hover_delay_ms: u64,
 
     //OCR Settings
-    pub show_pipeline_config: bool,
-    pub show_statistics: bool,
-    pub show_history: bool,
     pub show_debug_cursor: bool,
 
     pub debug_images: ImageDisplay,
@@ -36,6 +33,14 @@ pub struct AppSettings {
     pub new_step_combobox: Vec<OcrPipelineStep>,
 
     pub quick_area_pick_mode: bool,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Default)]
+pub struct WindowState {
+    pub show_pipeline_config: bool,
+    pub show_statistics: bool,
+    pub show_history: bool,
+    pub show_debug_images: bool,
 }
 
 impl AppSettings {
@@ -72,9 +77,6 @@ impl Default for AppSettings {
             auto_restart_ocr: true,
             auto_restart_delay_ms: 1000,
             hover_delay_ms: 1000,
-            show_pipeline_config: false,
-            show_statistics: false,
-            show_history: false,
             show_debug_cursor: false,
             debug_images: ImageDisplay::default(),
             pipeline_configs: vec![
@@ -93,17 +95,19 @@ impl Default for AppSettings {
 }
 
 impl AppSettings {
-    pub(crate) fn show(&mut self, ctx: &egui::Context) {
-        self.debug_images.show_image_in_window(ctx, "Debug Image");
+    pub(crate) fn show(&mut self, ctx: &egui::Context, window_state: &mut WindowState) {
+        self.debug_images.show_image_in_window(
+            ctx,
+            "Debug Image",
+            &mut window_state.show_debug_images,
+        );
 
-        self.show_settings(ctx);
+        self.show_settings(ctx, window_state);
 
-        if self.show_pipeline_config {
-            self.show_pipeline_config(ctx);
-        }
+        self.show_pipeline_config(ctx, &mut window_state.show_pipeline_config);
     }
 
-    fn show_settings(&mut self, ctx: &Context) {
+    fn show_settings(&mut self, ctx: &Context, window_state: &mut WindowState) {
         let window = egui::Window::new("Settings")
             .default_width(50.0)
             .resizable(false);
@@ -119,12 +123,12 @@ impl AppSettings {
 
             self.show_pipeline_selector(ui);
 
-            self.show_ocr_config(ui);
+            self.show_ocr_config(ui, window_state);
 
-            self.show_window_settings(ui);
+            self.show_window_settings(ui, window_state);
             self.shortcut.show_config(ui);
 
-            self.show_debug_config(ui);
+            self.show_debug_config(ui, window_state);
 
             ui.separator();
             ui.horizontal(|ui| {
@@ -140,36 +144,38 @@ impl AppSettings {
         });
     }
 
-    fn show_pipeline_config(&mut self, ctx: &Context) {
-        egui::Window::new("OCR Pipeline Config").show(ctx, |ui| {
-            self.show_pipeline_selector(ui);
-            ui.separator();
+    fn show_pipeline_config(&mut self, ctx: &Context, open: &mut bool) {
+        egui::Window::new("OCR Pipeline Config")
+            .open(open)
+            .show(ctx, |ui| {
+                self.show_pipeline_selector(ui);
+                ui.separator();
 
-            ui.horizontal(|ui| {
-                if ui
-                    .button(RichText::new("New Pipeline").color(Color32::GREEN))
-                    .clicked()
-                {
-                    self.pipeline_configs.push(OcrPipeline::default());
-                    self.selected_pipeline = self.pipeline_configs.len() - 1;
-                }
-
-                if self.pipeline_configs.len() > 1 {
+                ui.horizontal(|ui| {
                     if ui
-                        .button(RichText::new("Delete Pipeline").color(Color32::RED))
+                        .button(RichText::new("New Pipeline").color(Color32::GREEN))
                         .clicked()
                     {
-                        self.pipeline_configs.remove(self.selected_pipeline);
-                        self.selected_pipeline = self.selected_pipeline.saturating_sub(1);
+                        self.pipeline_configs.push(OcrPipeline::default());
+                        self.selected_pipeline = self.pipeline_configs.len() - 1;
                     }
-                }
+
+                    if self.pipeline_configs.len() > 1 {
+                        if ui
+                            .button(RichText::new("Delete Pipeline").color(Color32::RED))
+                            .clicked()
+                        {
+                            self.pipeline_configs.remove(self.selected_pipeline);
+                            self.selected_pipeline = self.selected_pipeline.saturating_sub(1);
+                        }
+                    }
+                });
+
+                ui.separator();
+
+                self.get_current_pipeline_mut().show(ui);
+                self.show_new_pipeline_step_settings(ui);
             });
-
-            ui.separator();
-
-            self.get_current_pipeline_mut().show(ui);
-            self.show_new_pipeline_step_settings(ui);
-        });
     }
 
     fn show_pipeline_selector(&mut self, ui: &mut Ui) {
@@ -197,7 +203,7 @@ impl AppSettings {
         });
     }
 
-    fn show_window_settings(&mut self, ui: &mut Ui) {
+    fn show_window_settings(&mut self, ui: &mut Ui, window_state: &mut WindowState) {
         CollapsingHeader::new("Window Config").show(ui, |ui| {
             egui::widgets::global_theme_preference_buttons(ui);
 
@@ -216,12 +222,12 @@ impl AppSettings {
                 update_decorations(self.decorations);
             }
 
-            ui.checkbox(&mut self.show_history, "Show History");
-            ui.checkbox(&mut self.show_statistics, "Show Statistics");
+            ui.checkbox(&mut window_state.show_history, "Show History");
+            ui.checkbox(&mut window_state.show_statistics, "Show Statistics");
         });
     }
 
-    fn show_ocr_config(&mut self, ui: &mut egui::Ui) {
+    fn show_ocr_config(&mut self, ui: &mut Ui, window_state: &mut WindowState) {
         CollapsingHeader::new("OCR Config").show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.add(
@@ -236,11 +242,14 @@ impl AppSettings {
                 );
             });
 
-            ui.checkbox(&mut self.show_pipeline_config, "Show OCR Pipeline Config");
+            ui.checkbox(
+                &mut window_state.show_pipeline_config,
+                "Show OCR Pipeline Config",
+            );
         });
     }
 
-    fn show_debug_config(&mut self, ui: &mut egui::Ui) {
+    fn show_debug_config(&mut self, ui: &mut egui::Ui, window_state: &mut WindowState) {
         CollapsingHeader::new("Debug Config").show(ui, |ui| {
             if ui.button("Open Workdir").clicked() {
                 let current_dir = std::env::current_dir().expect("Failed to get current_dir");
@@ -252,7 +261,7 @@ impl AppSettings {
                 ui.color_edit_button_srgba(&mut self.clear_color);
             });
 
-            ui.checkbox(&mut self.debug_images.visible, "Show Debug Images");
+            ui.checkbox(&mut window_state.show_debug_images, "Show Debug Images");
 
             ui.checkbox(&mut self.show_debug_cursor, "Show Debug Cursor");
 

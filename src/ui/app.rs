@@ -1,7 +1,7 @@
 use super::background_rect::BackgroundRect;
 use super::kanji_history_ui::{HistoryDataUi, init_history_updater};
 use super::kanji_statistic_ui::{KanjiStatisticUi, init_kanji_statistic_updater};
-use super::settings::{AppSettings, Backend, BackendStatus};
+use super::settings::{AppSettings, Backend, BackendStatus, WindowState};
 use crate::detect::comictextdetector::DETECT_STATE;
 use crate::event::event::{update_backend_status, update_decorations};
 use crate::ocr::manga_ocr::MANGA_OCR;
@@ -19,6 +19,7 @@ pub struct OcrApp {
     pub background_rect: BackgroundRect,
     pub kanji_statistic: KanjiStatisticUi,
     pub history: HistoryDataUi,
+    pub window_state: WindowState,
 }
 
 impl OcrApp {
@@ -80,14 +81,11 @@ impl OcrApp {
 
         self.background_rect.show(ctx, &self.settings);
 
-        self.settings.show(ctx);
+        self.settings.show(ctx, &mut self.window_state);
 
-        if self.settings.show_statistics {
-            self.kanji_statistic.show(ctx);
-        }
-        if self.settings.show_history {
-            self.history.show(ctx);
-        }
+        self.kanji_statistic
+            .show(ctx, &mut self.window_state.show_statistics);
+        self.history.show(ctx, &mut self.window_state.show_history);
 
         self.update_mouse_passthrough(ctx);
 

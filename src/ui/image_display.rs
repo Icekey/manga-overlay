@@ -22,12 +22,8 @@ pub struct ImageWrapper {
 }
 
 impl ImageDisplay {
-    pub fn show_image_in_window(&mut self, ctx: &egui::Context, title: &str) {
-        if !self.visible {
-            return;
-        }
-
-        egui::Window::new(title).show(ctx, |ui| {
+    pub fn show_image_in_window(&mut self, ctx: &egui::Context, title: &str, open: &mut bool) {
+        egui::Window::new(title).open(open).show(ctx, |ui| {
             let len = self.image_handles.len();
             self.current_index = min(self.current_index, len.saturating_sub(1));
 
