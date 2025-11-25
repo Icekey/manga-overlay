@@ -43,8 +43,12 @@ impl BackgroundRect {
     pub fn show(&mut self, ctx: &Context, settings: &AppSettings) {
         self.check_start_ocr(ctx, settings);
 
-        let bg_response =
-            self.draw_background(ctx, settings.mouse_passthrough, settings.clear_color);
+        let bg_response = self.draw_background(
+            ctx,
+            settings.mouse_passthrough,
+            settings.clear_color,
+            settings.quick_area_pick_mode,
+        );
 
         if !settings.mouse_passthrough
             && self.update_drag(settings, &bg_response.response, ctx.zoom_factor())
@@ -64,6 +68,10 @@ impl BackgroundRect {
     }
 
     fn check_start_ocr(&mut self, ctx: &Context, settings: &AppSettings) {
+        if settings.quick_area_pick_mode {
+            return;
+        }
+
         if self.hide_ocr_rects {
             //Rects are hidden => screenshot can be taken
             self.start_ocr(ctx, settings);
@@ -181,13 +189,15 @@ impl BackgroundRect {
         ctx: &Context,
         mouse_passthrough: bool,
         clear_color: Color32,
+        quick_area_pick_mode: bool,
     ) -> egui::InnerResponse<()> {
         let frame_rect = get_frame_rect(ctx);
         let rect = self.get_unscaled_rect();
 
         let rect = scale_rect(rect, 1.0 / ctx.zoom_factor());
 
-        if !self.hide_ocr_rects && self.screenshot_result.show(ctx, &rect) {
+        if !quick_area_pick_mode && !self.hide_ocr_rects && self.screenshot_result.show(ctx, &rect)
+        {
             self.last_ocr_rect_hover_at = Some(Instant::now());
         }
 

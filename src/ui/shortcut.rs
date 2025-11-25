@@ -76,7 +76,7 @@ impl ShortcutEvent {
             ShortcutEvent::QuickAreaPickMode => {
                 enqueue_update(|_, app| {
                     update_mouse_passthrough(false);
-                    app.settings.quick_area_pick_mode = !app.settings.quick_area_pick_mode
+                    app.settings.quick_area_pick_mode = !app.settings.quick_area_pick_mode;
                 });
             }
         }
