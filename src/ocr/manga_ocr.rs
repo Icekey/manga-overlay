@@ -154,13 +154,29 @@ impl MangaOCR {
         let mut token_confs: TokenConfVec = vec![Vec::new(); batch_size];
 
         'outer: for run in 0..300 {
+            let active_indices: Vec<usize> = done_state
+                .iter()
+                .enumerate()
+                .filter_map(|(i, &done)| (!done).then_some(i))
+                .collect();
+
+            let tensor_slice = tensor.select(Axis(0), &active_indices);
+
             // Create input tensors
-            let input_token_ids = token_ids.iter().flatten().cloned().collect();
-            let input =
-                ndarray::Array::from_shape_vec((batch_size, token_ids[0].len()), input_token_ids)
-                    .expect("Input Shape is invalid");
+            let input_token_ids: Vec<i64> = active_indices
+                .iter()
+                .flat_map(|&i| token_ids[i].iter().cloned())
+                .collect();
+
+            let active_len = active_indices.len();
+            let input = ndarray::Array::from_shape_vec(
+                (active_len, token_ids[active_indices[0]].len()),
+                input_token_ids,
+            )
+            .expect("Input Shape is invalid");
+
             let inputs = inputs! {
-                "image" => TensorRef::from_array_view(&tensor)?,
+                "image" => TensorRef::from_array_view(&tensor_slice)?,
                 "token_ids" => TensorRef::from_array_view(&input)?,
             };
 
@@ -173,9 +189,11 @@ impl MangaOCR {
             // Get last token logits and find argmax
             let logits_view = logits.view();
 
-            for i in 0..batch_size {
-                if done_state[i] {
-                    token_ids[i].push(3);
+            for i in 0..active_len {
+                let original_i = active_indices[i];
+
+                if done_state[original_i] {
+                    token_ids[original_i].push(3);
                     continue;
                 }
 
@@ -194,15 +212,15 @@ impl MangaOCR {
 
                 let token_id = top_ten[0].token_id;
 
-                token_ids[i].push(token_id);
+                token_ids[original_i].push(token_id);
 
                 if run > 0 {
-                    token_confs[i].push(top_ten);
+                    token_confs[original_i].push(top_ten);
                 }
 
                 // Break if end token
                 if token_id == 3 {
-                    done_state[i] = true;
+                    done_state[original_i] = true;
                 }
             }
 
