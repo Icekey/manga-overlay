@@ -29,6 +29,16 @@ impl OcrApp {
     fn should_mouse_passthrough(&self, ctx: &Context) -> bool {
         self.settings.mouse_passthrough && is_mouse_over_background(ctx)
     }
+
+    pub fn draw_debug_border(&self, ctx: &Context) {
+        let content_rect = ctx.content_rect();
+        ctx.debug_painter().rect_stroke(
+            content_rect,
+            0.0,
+            egui::Stroke::new(1.0, Color32::RED),
+            egui::StrokeKind::Inside,
+        );
+    }
 }
 
 pub fn is_mouse_over_background(ctx: &Context) -> bool {

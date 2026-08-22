@@ -1,6 +1,6 @@
 use super::background_rect::start_ocr_id;
 use crate::action::OcrPipelineStep;
-use crate::event::event::{reset_ui, update_decorations};
+use crate::event::event::{reset_ui, resize_to_almost_fullscreen, update_decorations};
 use crate::ui::id_item::IdItemVec;
 use crate::ui::image_display::ImageDisplay;
 use crate::ui::pipeline_config::OcrPipeline;
@@ -22,6 +22,7 @@ pub struct AppSettings {
     pub hover_delay_ms: u64,
 
     //OCR Settings
+    pub show_debug_border: bool,
     pub show_debug_cursor: bool,
 
     pub debug_images: ImageDisplay,
@@ -77,6 +78,7 @@ impl Default for AppSettings {
             auto_restart_ocr: true,
             auto_restart_delay_ms: 1000,
             hover_delay_ms: 1000,
+            show_debug_border: false,
             show_debug_cursor: false,
             debug_images: ImageDisplay::default(),
             pipeline_configs: vec![
@@ -216,6 +218,10 @@ impl AppSettings {
                 ui.selectable_value(&mut self.zoom_factor, 3.0, "300%");
             });
 
+            if ui.button("Reset Window Size").clicked() {
+                resize_to_almost_fullscreen();
+            }
+
             ui.checkbox(&mut self.mouse_passthrough, "Mouse Passthrough");
 
             if ui.checkbox(&mut self.decorations, "Decorations").clicked() {
@@ -264,6 +270,8 @@ impl AppSettings {
             ui.checkbox(&mut window_state.show_debug_images, "Show Debug Images");
 
             ui.checkbox(&mut self.show_debug_cursor, "Show Debug Cursor");
+
+            ui.checkbox(&mut self.show_debug_border, "Show Debug Border");
 
             if ui.button("Reset UI").clicked() {
                 enqueue_update(reset_ui);

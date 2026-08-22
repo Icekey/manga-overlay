@@ -210,3 +210,22 @@ pub fn update_decorations_internal(ctx: &Context, app: &mut OcrApp, decorations:
     app.settings.decorations = decorations;
     ctx.send_viewport_cmd(egui::ViewportCommand::Decorations(decorations));
 }
+
+pub fn resize_to_almost_fullscreen() {
+    enqueue_update(move |ctx, _| {
+        resize_to_almost_fullscreen_internal(ctx);
+    });
+}
+
+fn resize_to_almost_fullscreen_internal(ctx: &Context) {
+    if let Some(monitor_size) = ctx.input(|i| i.viewport().monitor_size) {
+        let target_width = monitor_size.x - 2.0;
+        let target_height = monitor_size.y - 2.0;
+        let target_size = egui::vec2(target_width, target_height);
+
+        let target_position = egui::pos2(1.0, 1.0);
+
+        ctx.send_viewport_cmd(egui::ViewportCommand::OuterPosition(target_position));
+        ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(target_size));
+    }
+}

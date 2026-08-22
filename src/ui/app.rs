@@ -92,6 +92,10 @@ impl OcrApp {
         if self.settings.show_debug_cursor {
             self.draw_mouse_position(ctx);
         }
+
+        if self.settings.show_debug_border {
+            self.draw_debug_border(ctx);
+        }
     }
 }
 
