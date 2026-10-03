@@ -52,7 +52,7 @@ impl ScreenshotResult {
 
             if area.response.clicked() {
                 if result.translation.is_empty() {
-                    fetch_translation(&result.ocr, i, ctx);
+                    fetch_translation(&result.ocr, i);
                 } else {
                     set_translation_visible(ctx, !is_translation_visible(ctx));
                 }
@@ -101,16 +101,19 @@ fn set_translation_visible(ctx: &egui::Context, is_visible: bool) {
     ctx.data_mut(|map| map.insert_temp::<bool>(Id::new("is_translation_visible"), is_visible));
 }
 
-fn fetch_translation(ocr: &str, index: usize, ctx: &egui::Context) {
+fn fetch_translation(ocr: &str, index: usize) {
     let ocr = ocr.to_owned();
-    let ctx = ctx.clone();
-    tokio::spawn(async move {
-        let translation = get_translation(&ocr).await;
-        ctx.data_mut(|x| {
-            x.insert_temp(
-                Id::new("translation"),
-                TranslationUpdate { index, translation },
-            );
+    enqueue_update(move |ctx, app| {
+        let ctx = ctx.clone();
+        let translation_config = app.settings.translation_config.clone();
+        tokio::spawn(async move {
+            let translation = get_translation(&translation_config, &ocr).await;
+            ctx.data_mut(|x| {
+                x.insert_temp(
+                    Id::new("translation"),
+                    TranslationUpdate { index, translation },
+                );
+            });
         });
     });
 }

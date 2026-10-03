@@ -80,7 +80,7 @@ pub fn load_history_data(ocr: &str) -> Result<HistoryData> {
 pub fn load_full_history() -> Result<Vec<HistoryData>> {
     let conn = open_connection()?;
 
-    let mut stmt = conn.prepare("SELECT * FROM history ORDER BY updated_at DESC, id DESC")?;
+    let mut stmt = conn.prepare("SELECT * FROM history ORDER BY created_at DESC, id DESC")?;
 
     let history: Vec<HistoryData> = stmt
         .query_map([], HistoryData::from_row)?

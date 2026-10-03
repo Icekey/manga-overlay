@@ -1,6 +1,7 @@
 use super::background_rect::start_ocr_id;
 use crate::action::OcrPipelineStep;
 use crate::event::event::{reset_ui, resize_to_almost_fullscreen, update_decorations};
+use crate::translation::llm::{TranslationConfig, update_available_models};
 use crate::ui::id_item::IdItemVec;
 use crate::ui::image_display::ImageDisplay;
 use crate::ui::pipeline_config::OcrPipeline;
@@ -34,6 +35,8 @@ pub struct AppSettings {
     pub new_step_combobox: Vec<OcrPipelineStep>,
 
     pub quick_area_pick_mode: bool,
+
+    pub translation_config: TranslationConfig,
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Default)]
@@ -92,6 +95,7 @@ impl Default for AppSettings {
             new_step_selected: OcrPipelineStep::ImageProcessing(PreprocessConfig::default()),
             new_step_combobox: vec,
             quick_area_pick_mode: false,
+            translation_config: TranslationConfig::default(),
         }
     }
 }
@@ -127,6 +131,8 @@ impl AppSettings {
 
             self.show_ocr_config(ui, window_state);
 
+            self.show_translation_config(ui);
+
             self.show_window_settings(ui, window_state);
             self.shortcut.show_config(ui);
 
@@ -142,6 +148,44 @@ impl AppSettings {
                     "\u{E624} Manga Overlay on GitHub",
                     "https://github.com/Icekey/manga-overlay",
                 );
+            });
+        });
+    }
+
+    fn show_translation_config(&mut self, ui: &mut Ui) {
+        CollapsingHeader::new("Translation Config").show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.label("Model URL:");
+                ui.text_edit_singleline(&mut self.translation_config.model_url);
+            });
+
+            ui.horizontal(|ui| {
+                if ui.button("Fetch Models").clicked() {
+                    update_available_models(&self.translation_config);
+                }
+
+                let label = self
+                    .translation_config
+                    .model_index
+                    .map(|idx| self.translation_config.model_names[idx].to_string())
+                    .unwrap_or_else(|| "No model".to_string());
+
+                egui::ComboBox::from_label("Model")
+                    .selected_text(label)
+                    .show_ui(ui, |ui| {
+                        for i in 0..self.translation_config.model_names.len() {
+                            ui.selectable_value(
+                                &mut self.translation_config.model_index,
+                                Some(i),
+                                self.translation_config.model_names[i].to_string(),
+                            );
+                        }
+                    });
+            });
+
+            ui.horizontal(|ui| {
+                ui.label("Prompt Template:");
+                ui.text_edit_multiline(&mut self.translation_config.prompt_template);
             });
         });
     }

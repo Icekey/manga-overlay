@@ -35,7 +35,7 @@ impl OcrApp {
         ctx.debug_painter().rect_stroke(
             content_rect,
             0.0,
-            egui::Stroke::new(1.0, Color32::RED),
+            egui::Stroke::new(1.0f32, Color32::RED),
             egui::StrokeKind::Inside,
         );
     }

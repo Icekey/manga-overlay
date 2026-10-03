@@ -5,7 +5,8 @@ use crate::jpn::{JpnData, dict, get_jpn_data};
 use crate::ocr::OcrBackend::MangaOcr;
 use crate::ocr::manga_ocr::get_kanji_top_text;
 use crate::ocr::{BackendResult, OcrBackend};
-use crate::translation::google::translate;
+use crate::translation::llm;
+use crate::translation::llm::TranslationConfig;
 use crate::ui::id_item::{IdItem, IdItemVec};
 use crate::ui::settings::{Backend, BackendStatus, PreprocessConfig};
 use crate::ui::update_queue::enqueue_update;
@@ -16,6 +17,7 @@ use futures::future::join_all;
 use image::{DynamicImage, GenericImage};
 use imageproc::rect::Rect;
 use itertools::Itertools;
+use llm::translate;
 use log::info;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Default, Clone)]
@@ -370,7 +372,7 @@ impl ResultData {
     }
 }
 
-pub async fn get_translation(input: &str) -> String {
+pub async fn get_translation(config: &TranslationConfig, input: &str) -> String {
     use std::time::Instant;
     let now = Instant::now();
 
@@ -381,7 +383,7 @@ pub async fn get_translation(input: &str) -> String {
     let elapsed = now.elapsed();
     info!("End get_translation elapsed: {elapsed:.2?}");
 
-    let translation = translate(&input)
+    let translation = translate(config, &input)
         .await
         .map_err(|err| err.to_string())
         .unwrap_or_else(|err_string| err_string)

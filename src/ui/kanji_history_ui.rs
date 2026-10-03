@@ -38,14 +38,18 @@ impl HistoryDataUi {
     fn show_table(&mut self, ui: &mut egui::Ui) {
         TableBuilder::new(ui)
             .column(Column::auto())
-            .column(Column::remainder())
-            .column(Column::remainder())
+            .column(Column::remainder().resizable(true))
+            .column(Column::auto())
+            .column(Column::remainder().resizable(true))
             .header(20.0, |mut header| {
                 header.col(|ui| {
                     ui.heading("Timestamp");
                 });
                 header.col(|ui| {
                     ui.heading("OCR");
+                });
+                header.col(|ui| {
+                    ui.heading("Action");
                 });
                 header.col(|ui| {
                     ui.heading("Translation");
@@ -61,13 +65,22 @@ impl HistoryDataUi {
                             ui.label(&value.ocr);
                         });
                         row.col(|ui| {
+                            if ui.button("Translate").clicked() {
+                                let ocr = value.ocr.clone();
+
+                                enqueue_update(move |_, app| {
+                                    let config = app.settings.translation_config.clone();
+                                    TASK_TRACKER.spawn(async move {
+                                        let _ = action::get_translation(&config, &ocr).await;
+                                    });
+                                });
+                            }
+                        });
+                        row.col(|ui| {
                             if let Some(translation) = &value.translation {
                                 ui.label(translation);
-                            } else if ui.button("Translate").clicked() {
-                                let ocr = value.ocr.clone();
-                                TASK_TRACKER.spawn(async move {
-                                    let _ = action::get_translation(&ocr).await;
-                                });
+                            } else {
+                                ui.label("");
                             }
                         });
                     }
