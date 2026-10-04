@@ -306,7 +306,8 @@ fn create_info_window<'a>(
         .title_bar(false)
         .pivot(pivot)
         .default_pos(default_pos.clone())
-        .default_width(500.0);
+        .default_width(500.0)
+        .min_width(500.0);
 
     if changed_text {
         window = window.current_pos(default_pos);

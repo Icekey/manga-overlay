@@ -34,8 +34,15 @@ fn default_model_url() -> String {
     "http://127.0.0.1:1337/v1".to_string()
 }
 
+//Prompt for lmg-anon/vntl-llama3-8b-v2-hf-q8_0
 fn default_prompt_template() -> String {
-    "Translate the following Japanese text to English:".to_string()
+    "<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+You are an expert translator. Translate the following Japanese text into natural, fluent English. \
+Maintain the original tone and context.<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+{}<|eot_id|><|start_header_id|>assistant<|end_header_id|>"
+        .to_string()
 }
 
 pub async fn translate(config: &TranslationConfig, jpn_text: &str) -> Result<String> {
@@ -44,12 +51,16 @@ pub async fn translate(config: &TranslationConfig, jpn_text: &str) -> Result<Str
     }
     let model_name = &config.model_names[config.model_index.unwrap()];
 
+    if !config.prompt_template.contains("{}") {
+        bail!("the placeholder '{{}}' is missing in the prompt template");
+    }
+
     let payload = json!( {
         "model": model_name,
         "messages": [
             {
                 "role": "user",
-                "content": format!("{} {}", config.prompt_template, jpn_text)
+                "content": format!("{}", config.prompt_template.replace("{}", jpn_text))
             }
         ],
         "stream": false
