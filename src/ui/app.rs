@@ -1,5 +1,5 @@
 use super::background_rect::BackgroundRect;
-use super::kanji_history_ui::{HistoryDataUi, init_history_updater};
+use super::kanji_history_ui::{HistoryDataUi, init_history};
 use super::kanji_statistic_ui::{KanjiStatisticUi, init_kanji_statistic_updater};
 use super::settings::{AppSettings, Backend, BackendStatus, WindowState};
 use crate::detect::comictextdetector::DETECT_STATE;
@@ -37,7 +37,7 @@ impl OcrApp {
             Default::default()
         };
 
-        init_history_updater();
+        init_history();
         init_kanji_statistic_updater();
 
         ocr_app.init();

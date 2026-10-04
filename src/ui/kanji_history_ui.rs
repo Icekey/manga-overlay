@@ -1,8 +1,5 @@
-use std::time::Duration;
-
 use egui::{CentralPanel, TopBottomPanel};
 use egui_extras::{Column, TableBuilder};
-use tokio::time::sleep;
 
 use crate::event::event::update_history_data;
 use crate::ui::shutdown::TASK_TRACKER;
@@ -14,14 +11,11 @@ use crate::{action, database::HistoryData};
 pub struct HistoryDataUi {
     pub history_data: Vec<HistoryData>,
 }
-pub fn init_history_updater() {
+pub fn init_history() {
     TASK_TRACKER.spawn(async move {
-        loop {
-            let history_data = action::load_history();
+        let history_data = action::load_history();
 
-            enqueue_update(|_, app| update_history_data(app, history_data));
-            sleep(Duration::from_secs(1)).await;
-        }
+        enqueue_update(|_, app| update_history_data(app, history_data));
     });
 }
 

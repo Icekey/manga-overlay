@@ -1,5 +1,5 @@
 use anyhow::{Ok, Result};
-use rusqlite::{Connection, Row, params};
+use rusqlite::{Connection, Row};
 use serde::Serialize;
 
 use super::table::create_table;
@@ -25,28 +25,30 @@ fn open_connection() -> Result<Connection> {
     )
 }
 
-pub fn store_ocr(ocr: &str) -> Result<()> {
+pub fn store_ocr(ocr: &str) -> Result<HistoryData> {
     let conn = open_connection()?;
 
-    conn.execute(
+    let mut stmt = conn.prepare(
         "INSERT INTO history (ocr) VALUES (?1) \
-            ON CONFLICT(ocr) DO NOTHING",
-        params![ocr],
+            ON CONFLICT(ocr) DO UPDATE SET updated_at = current_timestamp \
+            RETURNING id, created_at, updated_at, ocr, translation",
     )?;
+    let history: HistoryData = stmt.query_row([ocr], HistoryData::from_row)?;
 
-    Ok(())
+    Ok(history)
 }
 
-pub fn store_ocr_translation(ocr: &str, translation: &str) -> Result<()> {
+pub fn store_ocr_translation(ocr: &str, translation: &str) -> Result<HistoryData> {
     let conn = open_connection()?;
 
-    conn.execute(
+    let mut stmt = conn.prepare(
         "INSERT INTO history (ocr, translation) VALUES (?1, ?2) \
-            ON CONFLICT(ocr) DO UPDATE SET translation = excluded.translation, updated_at = current_timestamp",
-        params![ocr, translation],
+            ON CONFLICT(ocr) DO UPDATE SET translation = excluded.translation, updated_at = current_timestamp \
+            RETURNING id, created_at, updated_at, ocr, translation"
     )?;
+    let history: HistoryData = stmt.query_row([ocr, translation], HistoryData::from_row)?;
 
-    Ok(())
+    Ok(history)
 }
 
 impl HistoryData {

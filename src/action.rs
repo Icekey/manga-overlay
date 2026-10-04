@@ -1,6 +1,9 @@
 use crate::database::{HistoryData, KanjiStatistic};
 use crate::detect::comictextdetector::{DETECT_STATE, combine_overlapping_rects, filter_rects};
-use crate::event::event::{update_backend_status, update_image_display, update_screenshot_result};
+use crate::event::event::{
+    update_backend_status, update_image_display, update_screenshot_result,
+    update_single_history_data,
+};
 use crate::jpn::{JpnData, dict, get_jpn_data};
 use crate::ocr::OcrBackend::MangaOcr;
 use crate::ocr::manga_ocr::get_kanji_top_text;
@@ -241,7 +244,9 @@ async fn run_ocr_step(images: &Vec<SubImage>, backend: &OcrBackend) -> Vec<SubIm
 
     for ocr_result in &ocr_results {
         //Store OCR
-        database::store_ocr(&ocr_result.ocr).expect("Failed to store ocr");
+        let history_data = database::store_ocr(&ocr_result.ocr).expect("Failed to store ocr");
+
+        enqueue_update(move |_, app| update_single_history_data(app, history_data));
 
         for jpn_data in ocr_result.jpn.iter().flatten() {
             if jpn_data.has_kanji_data() {
@@ -390,7 +395,10 @@ pub async fn get_translation(config: &TranslationConfig, input: &str) -> String 
         .trim()
         .to_string();
 
-    database::store_ocr_translation(&input, &translation).expect("Failed to store history data");
+    let history_data = database::store_ocr_translation(&input, &translation)
+        .expect("Failed to store history data");
+
+    enqueue_update(move |_, app| update_single_history_data(app, history_data));
 
     translation
 }

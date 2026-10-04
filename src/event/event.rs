@@ -87,6 +87,19 @@ pub fn update_history_data(state: &mut OcrApp, data: Vec<HistoryData>) {
     state.history.history_data = data;
 }
 
+pub fn update_single_history_data(state: &mut OcrApp, data: HistoryData) {
+    if let Some(x) = state
+        .history
+        .history_data
+        .iter_mut()
+        .find(|x| x.id == data.id)
+    {
+        let _ = std::mem::replace(x, data);
+    } else {
+        state.history.history_data.insert(0, data);
+    }
+}
+
 pub fn update_kanji_statistic(ctx: &Context, state: &mut OcrApp, data: Vec<KanjiStatistic>) {
     state.kanji_statistic.kanji_statistic = data;
     if state.kanji_statistic.selected_kanji_index.is_none() {
